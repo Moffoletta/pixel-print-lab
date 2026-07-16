@@ -4,6 +4,12 @@ Questo documento rappresenta la struttura generale dell'applicazione. Deve esser
 
 Ultimo aggiornamento: 16 luglio 2026, fase 9.
 
+## Diagramma Di Flusso
+
+![Diagramma di flusso generale di Pixel Print Lab](images/flusso-applicazione.svg)
+
+Il file SVG puo essere aperto direttamente dal percorso [`docs/images/flusso-applicazione.svg`](images/flusso-applicazione.svg) e mantiene la qualita a qualsiasi dimensione.
+
 ## Vista Generale
 
 ```mermaid

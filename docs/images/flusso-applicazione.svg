@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title description">
+  <title id="title">Diagramma di flusso di Pixel Print Lab</title>
+  <description id="description">Flussi del cliente e dell'amministratore attraverso frontend, server Express, database SQLite e storage locale.</description>
+  <defs>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#27342c" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow-blue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#68a0ff"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#ff7547"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#70d69a"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="8" dy="8" stdDeviation="0" flood-color="#080d0a" flood-opacity="0.9"/>
+    </filter>
+    <style>
+      .title { font: 800 46px Arial, sans-serif; fill: #f3f0e6; letter-spacing: -1px; }
+      .subtitle { font: 600 18px Consolas, monospace; fill: #aeb8b1; }
+      .lane-title { font: 800 18px Consolas, monospace; fill: #17201a; letter-spacing: 1px; }
+      .node-title { font: 800 20px Arial, sans-serif; fill: #17201a; }
+      .node-copy { font: 600 14px Consolas, monospace; fill: #4b5850; }
+      .dark-title { font: 800 20px Arial, sans-serif; fill: #f3f0e6; }
+      .dark-copy { font: 600 14px Consolas, monospace; fill: #bfc8c1; }
+      .label { font: 700 13px Consolas, monospace; fill: #d8ded9; }
+      .small { font: 700 12px Consolas, monospace; fill: #aeb8b1; }
+      .public-flow { fill: none; stroke: #68a0ff; stroke-width: 5; marker-end: url(#arrow-blue); }
+      .admin-flow { fill: none; stroke: #ff7547; stroke-width: 5; marker-end: url(#arrow-orange); }
+      .data-flow { fill: none; stroke: #70d69a; stroke-width: 5; marker-end: url(#arrow-green); }
+      .dash { stroke-dasharray: 10 8; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="#111a15"/>
+  <rect width="1600" height="980" fill="url(#grid)"/>
+  <rect x="0" y="0" width="18" height="980" fill="#ff6534"/>
+
+  <text x="72" y="78" class="title">PIXEL PRINT LAB / FLUSSO APPLICATIVO</text>
+  <text x="74" y="112" class="subtitle">Cliente e amministratore attraversano interfacce separate, API validate e persistenza locale.</text>
+
+  <rect x="55" y="148" width="1490" height="348" rx="4" fill="#17231c" stroke="#68a0ff" stroke-width="3"/>
+  <rect x="55" y="148" width="205" height="42" fill="#68a0ff"/>
+  <text x="76" y="176" class="lane-title">FLUSSO CLIENTE</text>
+
+  <g filter="url(#shadow)">
+    <rect x="90" y="240" width="190" height="120" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <text x="115" y="282" class="node-title">Cliente</text>
+    <text x="115" y="312" class="node-copy">Sfoglia e configura</text>
+    <text x="115" y="336" class="node-copy">la richiesta</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="365" y="215" width="250" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <rect x="365" y="215" width="250" height="35" fill="#68a0ff"/>
+    <text x="390" y="290" class="node-title">Sito pubblico</text>
+    <text x="390" y="320" class="node-copy">Catalogo e viewer STL</text>
+    <text x="390" y="344" class="node-copy">Carrello in localStorage</text>
+    <text x="390" y="368" class="node-copy">Upload o link modello</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="705" y="215" width="250" height="170" rx="3" fill="#1d2a22" stroke="#68a0ff" stroke-width="4"/>
+    <text x="735" y="270" class="dark-title">API pubbliche</text>
+    <text x="735" y="305" class="dark-copy">/api/products</text>
+    <text x="735" y="329" class="dark-copy">/api/colors</text>
+    <text x="735" y="353" class="dark-copy">/api/orders</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1045" y="215" width="210" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <rect x="1045" y="215" width="210" height="35" fill="#70d69a"/>
+    <text x="1070" y="290" class="node-title">Validazione</text>
+    <text x="1070" y="320" class="node-copy">Dati, prezzi, colori</text>
+    <text x="1070" y="344" class="node-copy">STL e link esterni</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1340" y="215" width="160" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <text x="1364" y="278" class="node-title">Esito</text>
+    <text x="1364" y="310" class="node-copy">Codice</text>
+    <text x="1364" y="334" class="node-copy">richiesta</text>
+    <rect x="1364" y="350" width="94" height="8" fill="#ff6534"/>
+  </g>
+
+  <path d="M280 300 H350" class="public-flow"/>
+  <path d="M615 300 H690" class="public-flow"/>
+  <path d="M955 300 H1030" class="public-flow"/>
+  <path d="M1255 300 H1325" class="public-flow"/>
+  <text x="292" y="284" class="label">AZIONI</text>
+  <text x="625" y="284" class="label">JSON / FILE</text>
+  <text x="965" y="284" class="label">CONTROLLI</text>
+  <text x="1265" y="284" class="label">OK</text>
+
+  <rect x="55" y="530" width="1490" height="348" rx="4" fill="#211b17" stroke="#ff7547" stroke-width="3"/>
+  <rect x="55" y="530" width="285" height="42" fill="#ff7547"/>
+  <text x="76" y="558" class="lane-title">FLUSSO AMMINISTRATORE</text>
+
+  <g filter="url(#shadow)">
+    <rect x="90" y="622" width="190" height="120" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <text x="115" y="663" class="node-title">Admin</text>
+    <text x="115" y="693" class="node-copy">Nome utente</text>
+    <text x="115" y="717" class="node-copy">e password</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="365" y="597" width="250" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <rect x="365" y="597" width="250" height="35" fill="#ff7547"/>
+    <text x="390" y="672" class="node-title">Control Room</text>
+    <text x="390" y="702" class="node-copy">Gestione ordini</text>
+    <text x="390" y="726" class="node-copy">Prodotti e colori</text>
+    <text x="390" y="750" class="node-copy">Immagini e STL</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="705" y="597" width="250" height="170" rx="3" fill="#1d2a22" stroke="#ff7547" stroke-width="4"/>
+    <text x="735" y="648" class="dark-title">API protette</text>
+    <text x="735" y="682" class="dark-copy">Sessione HttpOnly</text>
+    <text x="735" y="706" class="dark-copy">CRUD catalogo</text>
+    <text x="735" y="730" class="dark-copy">Gestione ordini</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1045" y="597" width="210" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <rect x="1045" y="597" width="210" height="35" fill="#70d69a"/>
+    <text x="1070" y="672" class="node-title">Persistenza</text>
+    <text x="1070" y="702" class="node-copy">SQLite</text>
+    <text x="1070" y="726" class="node-copy">Storage locale</text>
+    <text x="1070" y="750" class="node-copy">Snapshot storici</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1340" y="597" width="160" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
+    <text x="1364" y="660" class="node-title">Risultato</text>
+    <text x="1364" y="692" class="node-copy">Catalogo</text>
+    <text x="1364" y="716" class="node-copy">aggiornato</text>
+    <rect x="1364" y="733" width="94" height="8" fill="#68a0ff"/>
+  </g>
+
+  <path d="M280 682 H350" class="admin-flow"/>
+  <path d="M615 682 H690" class="admin-flow"/>
+  <path d="M955 682 H1030" class="admin-flow"/>
+  <path d="M1255 682 H1325" class="admin-flow"/>
+  <text x="292" y="666" class="label">LOGIN</text>
+  <text x="625" y="666" class="label">COOKIE</text>
+  <text x="965" y="666" class="label">SCRITTURA</text>
+  <text x="1265" y="666" class="label">OK</text>
+
+  <path d="M1150 385 V582" class="data-flow dash"/>
+  <text x="1172" y="488" class="small">DATI E FILE DELLA RICHIESTA</text>
+
+  <g transform="translate(74 925)">
+    <line x1="0" y1="0" x2="54" y2="0" class="public-flow"/>
+    <text x="72" y="5" class="small">Flusso pubblico</text>
+    <line x1="250" y1="0" x2="304" y2="0" class="admin-flow"/>
+    <text x="322" y="5" class="small">Flusso amministrativo</text>
+    <line x1="580" y1="0" x2="634" y2="0" class="data-flow"/>
+    <text x="652" y="5" class="small">Persistenza e file</text>
+    <text x="1130" y="5" class="small">FASE 9 / 16-07-2026</text>
+  </g>
+</svg>
