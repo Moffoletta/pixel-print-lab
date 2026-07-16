@@ -3,13 +3,14 @@ import { mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import Database from "better-sqlite3";
 import { createApp } from "../src/app.js";
 import {
   cleanupExpiredUploads,
   MAX_STL_FILE_SIZE,
   UPLOAD_TTL_MS,
 } from "../src/custom-model-routes.js";
-import { openDatabase, seedDatabase } from "../src/database.js";
+import { migrateDatabase, openDatabase, seedDatabase } from "../src/database.js";
 
 let server;
 let baseUrl;
@@ -17,11 +18,13 @@ let database;
 let uploadDirectory;
 let orderFileDirectory;
 let emailOutboxDirectory;
+let catalogDirectory;
 
 before(async () => {
   uploadDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-test-"));
   orderFileDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-orders-"));
   emailOutboxDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-emails-"));
+  catalogDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-catalog-"));
   database = openDatabase(":memory:");
   seedDatabase(database);
   server = createApp({
@@ -29,6 +32,7 @@ before(async () => {
     uploadDirectory,
     orderFileDirectory,
     emailOutboxDirectory,
+    catalogDirectory,
     adminUsername: "test-admin",
     adminPassword: "test-admin-password",
   }).listen(0);
@@ -43,11 +47,21 @@ after(async () => {
   });
   database.close();
   await Promise.all(
-    [uploadDirectory, orderFileDirectory, emailOutboxDirectory].map((directory) =>
+    [uploadDirectory, orderFileDirectory, emailOutboxDirectory, catalogDirectory].map((directory) =>
       rm(directory, { recursive: true, force: true }),
     ),
   );
 });
+
+async function authenticateAdmin() {
+  const response = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "test-admin", password: "test-admin-password" }),
+  });
+  assert.equal(response.status, 201);
+  return response.headers.get("set-cookie").split(";", 1)[0];
+}
 
 test("espone lo stato di salute del server", async () => {
   const response = await fetch(`${baseUrl}/api/health`);
@@ -148,7 +162,66 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 3);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 4);
+});
+
+test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli ID", () => {
+  const legacyDatabase = new Database(":memory:");
+  try {
+    legacyDatabase.exec(`
+      CREATE TABLE schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO schema_migrations (version, name) VALUES
+        (1, 'create_catalog'), (2, 'add_demo_model_urls'), (3, 'create_orders');
+      CREATE TABLE products (
+        id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, slug TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL,
+        price_cents INTEGER NOT NULL CHECK (price_cents >= 0), image_url TEXT NOT NULL,
+        image_alt TEXT NOT NULL, dimension_label TEXT NOT NULL, dimension_value TEXT NOT NULL,
+        material TEXT NOT NULL, model_url TEXT, visible INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE colors (
+        id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, hex_value TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE INDEX products_visible_sort_idx ON products (visible, sort_order, id);
+      CREATE INDEX colors_active_sort_idx ON colors (active, sort_order, id);
+      INSERT INTO products VALUES (
+        7, 'LEGACY', 'legacy', 'Legacy', 'Test', 'Dato esistente', 500,
+        '/images/legacy.png', 'Legacy', 'Lato', '5 cm', 'PLA', NULL, 1, 10,
+        '2025-01-01 10:00:00', '2025-02-01 10:00:00'
+      );
+      INSERT INTO colors VALUES (
+        9, 'Legacy', '#123456', 1, 10, '2025-01-01 10:00:00', '2025-02-01 10:00:00'
+      );
+    `);
+
+    const productBefore = legacyDatabase.prepare("SELECT * FROM products").get();
+    const colorBefore = legacyDatabase.prepare("SELECT * FROM colors").get();
+    migrateDatabase(legacyDatabase);
+
+    assert.deepEqual(legacyDatabase.prepare("SELECT * FROM products").get(), productBefore);
+    assert.deepEqual(legacyDatabase.prepare("SELECT * FROM colors").get(), colorBefore);
+    assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'products'").get().sql, /AUTOINCREMENT/);
+    assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 4);
+    legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
+    const nextId = Number(legacyDatabase.prepare(`
+      INSERT INTO products (
+        code, slug, name, category, description, price_cents, image_url, image_alt,
+        dimension_label, dimension_value, material
+      ) VALUES ('NEXT', 'next', 'Next', 'Test', 'Next', 1, '/next.png', 'Next', 'Lato', '1 cm', 'PLA')
+    `).run().lastInsertRowid);
+    assert.ok(nextId > 7);
+  } finally {
+    legacyDatabase.close();
+  }
 });
 
 test("carica, serve ed elimina un file STL valido", async () => {
@@ -414,6 +487,164 @@ test("rifiuta richieste manipolate senza creare record", async () => {
   }
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, initialCount);
+});
+
+test("gestisce prodotti, asset e colori senza alterare gli snapshot degli ordini", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/admin/catalog`)).status, 401);
+  const cookie = await authenticateAdmin();
+  const adminFetch = (pathName, options = {}) => fetch(`${baseUrl}${pathName}`, {
+    ...options,
+    headers: { cookie, ...(options.headers ?? {}) },
+  });
+  const stl = `solid catalog
+facet normal 0 0 1
+  outer loop
+    vertex 0 0 0
+    vertex 1 0 0
+    vertex 0 1 0
+  endloop
+endfacet
+endsolid catalog`;
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+
+  function productForm(overrides = {}) {
+    const values = {
+      code: "MOD_TEST",
+      slug: "prodotto-test",
+      name: "Prodotto Test",
+      category: "Test",
+      description: "Prodotto creato dai test amministrativi.",
+      priceCents: "1234",
+      imageAlt: "Immagine del prodotto di test",
+      dimensionLabel: "Larghezza",
+      dimensionValue: "10 cm",
+      material: "PLA",
+      visible: "true",
+      sortOrder: "90",
+      removeModel: "false",
+      ...overrides,
+    };
+    const form = new FormData();
+    Object.entries(values).forEach(([key, value]) => form.append(key, value));
+    return form;
+  }
+
+  const invalidUpload = productForm({ code: "MOD_BAD", slug: "prodotto-non-valido" });
+  invalidUpload.append("image", new Blob([png], { type: "image/png" }), "valida.png");
+  invalidUpload.append("unexpected", new Blob(["file non previsto"]), "extra.txt");
+  const invalidResponse = await adminFetch("/api/admin/products", { method: "POST", body: invalidUpload });
+  assert.equal(invalidResponse.status, 400);
+  assert.equal((await readdir(catalogDirectory)).length, 0);
+
+  const fakeJpeg = Buffer.alloc(107);
+  fakeJpeg.set([0xff, 0xd8, 0xff], 0);
+  fakeJpeg.set([0xff, 0xd9], fakeJpeg.length - 2);
+  const malformedImage = productForm({ code: "MOD_JPG", slug: "jpeg-non-valido" });
+  malformedImage.append("image", new Blob([fakeJpeg], { type: "image/jpeg" }), "falso.jpg");
+  const malformedResponse = await adminFetch("/api/admin/products", { method: "POST", body: malformedImage });
+  assert.equal(malformedResponse.status, 400);
+  assert.equal((await malformedResponse.json()).error.code, "INVALID_CATALOG_IMAGE");
+  assert.equal((await readdir(catalogDirectory)).length, 0);
+
+  const createForm = productForm();
+  createForm.append("image", new Blob([png], { type: "image/png" }), "prodotto.png");
+  createForm.append("model", new Blob([stl], { type: "model/stl" }), "prodotto.stl");
+  const createResponse = await adminFetch("/api/admin/products", { method: "POST", body: createForm });
+  const created = (await createResponse.json()).data;
+  assert.equal(createResponse.status, 201);
+  assert.match(created.imageUrl, /^\/catalog-assets\/[0-9a-f-]+\.png$/);
+  assert.match(created.modelUrl, /^\/catalog-assets\/[0-9a-f-]+\.stl$/);
+  assert.equal((await fetch(`${baseUrl}${created.imageUrl}`)).status, 200);
+  assert.equal((await fetch(`${baseUrl}${created.modelUrl}`)).status, 200);
+
+  const colorResponse = await adminFetch("/api/admin/colors", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Verde Test", hexValue: "#12AB34", active: true, sortOrder: 90 }),
+  });
+  const color = (await colorResponse.json()).data;
+  assert.equal(colorResponse.status, 201);
+
+  const orderId = Number(database.prepare(`
+    INSERT INTO orders (code, first_name, last_name, catalog_total_cents)
+    VALUES ('SNAPSHOT-TEST', 'Test', 'Storico', 1234)
+  `).run().lastInsertRowid);
+  const itemId = Number(database.prepare(`
+    INSERT INTO order_items (
+      order_id, position, item_type, product_id, product_code, product_name,
+      unit_price_cents, color_id, color_name, color_hex, quantity
+    ) VALUES (?, 1, 'catalog', ?, ?, ?, ?, ?, ?, ?, 1)
+  `).run(orderId, created.id, created.code, created.name, created.priceCents, color.id, color.name, color.hexValue).lastInsertRowid);
+  const snapshotQuery = database.prepare(`
+    SELECT product_id, product_code, product_name, unit_price_cents, color_id, color_name, color_hex
+    FROM order_items WHERE order_id = ?
+  `);
+  const originalSnapshot = snapshotQuery.get(orderId);
+
+  const updateResponse = await adminFetch(`/api/admin/products/${created.id}`, {
+    method: "PUT",
+    body: productForm({ name: "Prodotto Aggiornato", priceCents: "9999", visible: "false" }),
+  });
+  assert.equal(updateResponse.status, 200);
+  assert.equal((await updateResponse.json()).data.visible, false);
+  const colorUpdate = await adminFetch(`/api/admin/colors/${color.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Verde Storico", hexValue: "#229944", active: false, sortOrder: 90 }),
+  });
+  assert.equal(colorUpdate.status, 200);
+  const historicalUpdate = await adminFetch(`/api/admin/orders/${orderId}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Test",
+      lastName: "Storico",
+      items: [{
+        id: itemId,
+        itemType: "catalog",
+        productId: created.id,
+        colorId: color.id,
+        quantity: 2,
+      }],
+    }),
+  });
+  assert.equal(historicalUpdate.status, 200);
+  assert.equal(database.prepare("SELECT catalog_total_cents FROM orders WHERE id = ?").get(orderId).catalog_total_cents, 2468);
+  assert.deepEqual(snapshotQuery.get(orderId), originalSnapshot);
+  assert.equal((await fetch(`${baseUrl}/api/products/${created.id}`)).status, 404);
+
+  const catalog = (await (await adminFetch("/api/admin/catalog")).json()).data;
+  const reversedColorIds = catalog.colors.map(({ id }) => id).reverse();
+  const reorderResponse = await adminFetch("/api/admin/colors/order", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ids: reversedColorIds }),
+  });
+  assert.equal(reorderResponse.status, 200);
+  assert.deepEqual((await reorderResponse.json()).data.map(({ id }) => id), reversedColorIds);
+
+  const imagePath = path.join(catalogDirectory, path.basename(created.imageUrl));
+  const modelPath = path.join(catalogDirectory, path.basename(created.modelUrl));
+  assert.equal((await adminFetch(`/api/admin/products/${created.id}`, { method: "DELETE" })).status, 204);
+  await assert.rejects(stat(imagePath), { code: "ENOENT" });
+  await assert.rejects(stat(modelPath), { code: "ENOENT" });
+  assert.deepEqual(snapshotQuery.get(orderId), originalSnapshot);
+
+  const replacementForm = productForm({ code: "MOD_NEXT", slug: "prodotto-successivo", name: "Prodotto Successivo" });
+  replacementForm.append("image", new Blob([png], { type: "image/png" }), "successivo.png");
+  const replacementResponse = await adminFetch("/api/admin/products", { method: "POST", body: replacementForm });
+  const replacement = (await replacementResponse.json()).data;
+  assert.ok(replacement.id > created.id);
+  assert.equal((await adminFetch(`/api/admin/products/${replacement.id}`, { method: "DELETE" })).status, 204);
+
+  await adminFetch("/api/admin/colors/order", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ids: catalog.colors.map(({ id }) => id) }),
+  });
+  database.prepare("DELETE FROM orders WHERE id = ?").run(orderId);
+  database.prepare("DELETE FROM colors WHERE id = ?").run(color.id);
+  await rm(path.join(emailOutboxDirectory, "SNAPSHOT-TEST.txt"), { force: true });
 });
 
 test("protegge le API amministrative e gestisce il ciclo completo di un ordine", async () => {

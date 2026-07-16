@@ -1081,7 +1081,6 @@ La pagina gestisce:
 - Esiste un solo amministratore configurato tramite variabili d'ambiente.
 - Non esiste recupero password.
 - Gli ordini eliminati non sono recuperabili senza backup.
-- Prodotti e colori verranno gestiti nella fase successiva.
 - Prima della pubblicazione saranno necessari HTTPS e configurazione corretta del proxy.
 
 ### Verifiche
@@ -1103,4 +1102,69 @@ La fase verifica:
 
 ## 24. Esito Della Fase 8
 
-Le richieste possono ora essere consultate e gestite da un pannello protetto. La prossima fase estendera la stessa area amministrativa a prodotti, immagini, STL di catalogo e colori globali.
+Le richieste possono ora essere consultate e gestite da un pannello protetto. La fase successiva estende la stessa area amministrativa a prodotti, immagini, STL di catalogo e colori globali.
+
+## 25. Fase 9 - Gestione Catalogo E Colori
+
+### Navigazione Amministrativa
+
+La Control Room contiene due viste, Ordini e Catalogo, accessibili dalla stessa sessione. Il cambio sezione avviene nel browser senza duplicare autenticazione o pagina.
+
+La vista Catalogo usa API protette e mostra anche prodotti nascosti e colori inattivi, che le API pubbliche continuano invece a filtrare.
+
+### Prodotti
+
+L'amministratore puo creare, modificare, nascondere ed eliminare un prodotto. Ogni scheda gestisce:
+
+- codice e slug univoci;
+- nome, categoria e descrizione;
+- prezzo in centesimi;
+- dimensione e materiale;
+- posizione nel catalogo e visibilita;
+- immagine obbligatoria e STL facoltativo.
+
+Gli aggiornamenti impostano anche `updated_at`. Un prodotto nascosto resta disponibile nel pannello ma scompare dal catalogo pubblico e viene rimosso dai carrelli quando vengono riconciliati.
+
+### Asset Gestiti
+
+Gli upload amministrativi vengono salvati nella directory configurata da `CATALOG_DIRECTORY`, normalmente `storage/catalog`, e pubblicati sotto `/catalog-assets` con nomi UUID.
+
+Le immagini ammesse sono PNG, JPG e WebP fino a 5 MB. Il server confronta il formato dichiarato e decodifica realmente il file con `sharp`, limitando anche il numero di pixel ed evitando SVG attivi. Gli STL riutilizzano la validazione ASCII/binaria e il limite di 50 MB dei modelli personali.
+
+La sostituzione elimina il vecchio file gestito soltanto dopo l'aggiornamento del database. La cancellazione non tocca mai gli asset dimostrativi presenti in `public/images` e `public/models`.
+
+### Colori Globali
+
+I colori possono essere creati, rinominati, modificati, ordinati e disattivati. Il riordino riceve l'elenco completo degli ID, lo valida e assegna posizioni normalizzate in una transazione.
+
+Solo i colori attivi vengono restituiti da `/api/colors` e possono essere selezionati per nuove righe d'ordine.
+
+### Snapshot Storici
+
+Modificare o eliminare catalogo e colori non aggiorna `order_items`. Se una riga amministrativa mantiene gli stessi ID, il server conserva nome, codice, prezzo e colore dello snapshot originale anche quando la voce corrente e nascosta, inattiva o eliminata.
+
+L'interfaccia distingue queste opzioni con la dicitura `(ordine)`. Per nuove selezioni accetta soltanto prodotti visibili e colori attivi.
+
+La migrazione 4 ricrea `products` e `colors` con `AUTOINCREMENT`: un ID eliminato non puo quindi essere assegnato in seguito a una voce diversa.
+
+### API Amministrative Del Catalogo
+
+```text
+GET    /api/admin/catalog
+POST   /api/admin/products
+PUT    /api/admin/products/:id
+DELETE /api/admin/products/:id
+POST   /api/admin/colors
+PUT    /api/admin/colors/:id
+PUT    /api/admin/colors/order
+```
+
+Creazione e modifica dei prodotti usano `multipart/form-data`; colori e ordinamento usano JSON.
+
+### Verifiche
+
+I test coprono autorizzazione, CRUD dei prodotti, servizio e rimozione degli asset, filtri pubblici, colori, ordinamento, conservazione degli snapshot e mancato riutilizzo degli ID. Il pannello mantiene due colonne su desktop e dispone sidebar, editor e form in verticale sugli schermi stretti.
+
+## 26. Esito Della Fase 9
+
+Catalogo, file e palette globale sono ora gestibili dalla Control Room. Gli ordini storici restano indipendenti dalle modifiche successive e lo storage distingue asset dimostrativi, upload temporanei, file degli ordini e file amministrativi del catalogo.

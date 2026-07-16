@@ -6,19 +6,11 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 8 e conclusa.
+- Nessuna attivita. La fase 9 e conclusa.
 
 ## Da fare
 
-### Fase 9 - Gestione catalogo e colori
-
-- [ ] Aggiungere navigazione amministrativa tra ordini e catalogo.
-- [ ] Creare, modificare, nascondere ed eliminare prodotti.
-- [ ] Caricare immagini e STL di catalogo in sicurezza.
-- [ ] Gestire prezzo, descrizione e specifiche.
-- [ ] Creare, modificare, ordinare e disattivare colori globali.
-- [ ] Conservare invariati gli snapshot degli ordini esistenti.
-- [ ] Verificare autorizzazione, file e responsive.
+- Nessuna fase selezionata. Le funzionalita successive sono nel backlog.
 
 ## Backlog
 
@@ -55,6 +47,18 @@ Ultimo aggiornamento: 16 luglio 2026.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 9 - Gestione catalogo e colori
+
+- [x] Aggiunta navigazione amministrativa tra ordini e catalogo.
+- [x] Gestite creazione, modifica, visibilita ed eliminazione dei prodotti.
+- [x] Caricate immagini PNG, JPG o WebP e modelli STL in storage dedicato.
+- [x] Gestiti prezzo, descrizione, specifiche, ordinamento e asset.
+- [x] Gestite creazione, modifica, ordinamento e disattivazione dei colori globali.
+- [x] Impedito il riutilizzo degli ID eliminati tramite migrazione SQLite.
+- [x] Conservati invariati gli snapshot degli ordini esistenti.
+- [x] Verificati autorizzazione, file, filtri pubblici e layout responsive.
+- [x] Aggiornati test, guida tecnica ed esercizi.
 
 ### Fase 8 - Accesso amministrativo e ordini
 

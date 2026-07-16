@@ -96,6 +96,53 @@ const migrations = [
       CREATE INDEX order_items_order_idx ON order_items (order_id, position);
     `,
   },
+  {
+    version: 4,
+    name: "prevent_catalog_id_reuse",
+    sql: `
+      DROP INDEX products_visible_sort_idx;
+      DROP INDEX colors_active_sort_idx;
+
+      ALTER TABLE products RENAME TO products_legacy;
+      CREATE TABLE products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        slug TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
+        image_url TEXT NOT NULL,
+        image_alt TEXT NOT NULL,
+        dimension_label TEXT NOT NULL,
+        dimension_value TEXT NOT NULL,
+        material TEXT NOT NULL,
+        model_url TEXT,
+        visible INTEGER NOT NULL DEFAULT 1 CHECK (visible IN (0, 1)),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO products SELECT * FROM products_legacy;
+      DROP TABLE products_legacy;
+
+      ALTER TABLE colors RENAME TO colors_legacy;
+      CREATE TABLE colors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        hex_value TEXT NOT NULL CHECK (hex_value GLOB '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]'),
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO colors SELECT * FROM colors_legacy;
+      DROP TABLE colors_legacy;
+
+      CREATE INDEX products_visible_sort_idx ON products (visible, sort_order, id);
+      CREATE INDEX colors_active_sort_idx ON colors (active, sort_order, id);
+    `,
+  },
 ];
 
 const products = [

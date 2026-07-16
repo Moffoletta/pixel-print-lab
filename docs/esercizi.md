@@ -490,3 +490,51 @@ Crea una richiesta di prova, annota record, file ed email, quindi eliminala dal 
 5. Come viene aggiornato un ordine in una transazione?
 6. Quando viene eliminato un file STL permanente?
 7. Quali limiti ha l'autenticazione attuale?
+
+## Fase 9 - Gestione Catalogo E Colori
+
+### 1. Confronta Le API
+
+Nascondi un prodotto e disattiva un colore. Confronta `/api/products` e `/api/colors` con `/api/admin/catalog` e spiega la differenza.
+
+### 2. Ispeziona Gli Asset
+
+Crea un prodotto con immagine e STL. Controlla URL, nomi UUID, header `Content-Type` e `X-Content-Type-Options`, quindi individua i file in `storage/catalog`.
+
+### 3. Prova Un File Non Valido
+
+Rinomina un file di testo con estensione `.png` o `.stl` e prova a caricarlo. Verifica che il server rifiuti il contenuto e non lasci file orfani.
+
+### 4. Sostituisci Un Asset
+
+Carica una nuova immagine per un prodotto esistente. Verifica che il database punti al nuovo URL e che il vecchio file gestito venga eliminato.
+
+### 5. Proteggi Gli Asset Dimostrativi
+
+Modifica o elimina un prodotto dimostrativo che usa `/images` e `/models`. Spiega perche il server non prova a cancellare quei file dalla cartella `public`.
+
+### 6. Verifica Gli Snapshot
+
+Crea un ordine, poi rinomina e nascondi il prodotto usato e disattiva il colore. Riapri l'ordine e controlla che nome, prezzo e colore originali siano ancora visibili.
+
+### 7. Controlla Gli ID
+
+Crea un prodotto, annota il suo ID, eliminalo e creane un altro. Verifica che SQLite non riutilizzi l'ID precedente.
+
+### 8. Riordina La Palette
+
+Sposta i colori dal pannello e confronta `sort_order` prima e dopo. Verifica che l'API pubblica segua il nuovo ordinamento.
+
+### 9. Verifica Il Responsive
+
+Prova Ordini e Catalogo sopra e sotto 900 px e 560 px. Controlla navigazione, sidebar, campi prodotto e righe colore.
+
+## Autovalutazione Della Fase 9
+
+1. Perche gli asset caricati non vengono salvati in `public`?
+2. Perche non vengono accettate immagini SVG?
+3. Quando viene eliminato un asset sostituito?
+4. Perche un prodotto nascosto compare ancora nelle API amministrative?
+5. Come vengono conservati gli snapshot degli ordini?
+6. Quale problema evita `AUTOINCREMENT`?
+7. Perche il riordino dei colori usa una transazione?

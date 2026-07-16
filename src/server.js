@@ -8,6 +8,7 @@ const app = createApp({
   uploadDirectory: process.env.UPLOAD_DIRECTORY,
   orderFileDirectory: process.env.ORDER_FILE_DIRECTORY,
   emailOutboxDirectory: process.env.EMAIL_OUTBOX_DIRECTORY,
+  catalogDirectory: process.env.CATALOG_DIRECTORY,
   adminUsername: process.env.ADMIN_USERNAME,
   adminPassword: process.env.ADMIN_PASSWORD,
 });

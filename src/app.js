@@ -5,6 +5,7 @@ import { registerCatalogRoutes } from "./catalog-routes.js";
 import { registerCustomModelRoutes } from "./custom-model-routes.js";
 import { registerOrderRoutes } from "./order-routes.js";
 import { registerAdminRoutes } from "./admin-routes.js";
+import { registerCatalogAssetServing } from "./catalog-assets.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
@@ -15,6 +16,7 @@ export function createApp({
   uploadDirectory,
   orderFileDirectory,
   emailOutboxDirectory,
+  catalogDirectory,
   adminUsername,
   adminPassword,
 } = {}) {
@@ -26,6 +28,7 @@ export function createApp({
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
+  registerCatalogAssetServing(app, catalogDirectory);
   app.use("/vendor/three/build", express.static(path.join(threeDirectory, "build")));
   app.use("/vendor/three/examples/jsm", express.static(path.join(threeDirectory, "examples", "jsm")));
   app.use(express.static(publicDirectory));
@@ -46,6 +49,7 @@ export function createApp({
     database,
     adminUsername,
     adminPassword,
+    catalogDirectory,
     orderFileDirectory,
     emailOutboxDirectory,
   });
