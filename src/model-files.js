@@ -235,7 +235,7 @@ function parsePositiveId(value, label) {
   return id;
 }
 
-function parseModel(buffer) {
+function parseModel(buffer, { requireBuild = true } = {}) {
   const objects = new Map();
   const buildItems = [];
   const metadata = {};
@@ -302,7 +302,7 @@ function parseModel(buffer) {
       }
     },
   });
-  if (!objects.size || !buildItems.length) throw new ModelFileError("INVALID_3MF_GEOMETRY", "Il 3MF non contiene oggetti da stampare.");
+  if (!objects.size || (requireBuild && !buildItems.length)) throw new ModelFileError("INVALID_3MF_GEOMETRY", "Il 3MF non contiene oggetti da stampare.");
   for (const object of objects.values()) {
     for (const triangle of object.triangles) {
       if (triangle.some((index) => !Number.isInteger(index) || index < 0 || index >= object.vertices.length)) {
@@ -420,13 +420,33 @@ export async function inspect3mfFile(filename) {
   if (!modelRelationship) throw new ModelFileError("INVALID_3MF_RELATIONSHIP", "Il 3MF non indica il modello principale.");
   const modelPartName = resolvePartName(modelRelationship.target);
   const modelPartNames = [...entries.keys()].filter((name) => name.endsWith(".model"));
-  if (modelPartNames.length !== 1) throw new ModelFileError("3MF_MULTIPART_NOT_SUPPORTED", "I progetti 3MF con piu parti modello non sono ancora supportati.");
   const modelBuffer = entries.get(modelPartName)?.content;
   if (!modelBuffer) throw new ModelFileError("INVALID_3MF_RELATIONSHIP", "Il modello principale del 3MF non esiste.");
   const hasGcode = [...entries.keys()].some((name) => /^metadata\/plate_[1-9][0-9]*\.gcode$/i.test(name));
   if (hasGcode) throw new ModelFileError("GCODE_3MF_NOT_SUPPORTED", "I progetti 3MF contenenti G-code non sono supportati.");
 
   const model = parseModel(modelBuffer);
+  let totalVertices = [...model.objects.values()].reduce((total, object) => total + object.vertices.length, 0);
+  let totalTriangles = [...model.objects.values()].reduce((total, object) => total + object.triangles.length, 0);
+  let totalComponents = [...model.objects.values()].reduce((total, object) => total + object.components.length, 0);
+  for (const partName of modelPartNames) {
+    if (partName === modelPartName) continue;
+    const part = parseModel(entries.get(partName).content, { requireBuild: false });
+    if (part.unit !== model.unit) throw new ModelFileError("UNSUPPORTED_3MF_MULTIPART", "Le parti modello del 3MF usano unita di misura differenti.");
+    for (const [id, object] of part.objects) {
+      if (model.objects.has(id)) throw new ModelFileError("AMBIGUOUS_3MF_OBJECT", "Le parti modello del 3MF riutilizzano identificativi oggetto ambigui.");
+      model.objects.set(id, object);
+      totalVertices += object.vertices.length;
+      totalTriangles += object.triangles.length;
+      totalComponents += object.components.length;
+    }
+  }
+  if (
+    model.objects.size > MAX_OBJECTS || totalVertices > MAX_VERTICES ||
+    totalTriangles > MAX_TRIANGLES || totalComponents > MAX_COMPONENTS
+  ) {
+    throw new ModelFileError("3MF_GEOMETRY_TOO_COMPLEX", "L'insieme delle parti modello supera i limiti di sicurezza.");
+  }
   const plateBuffer = entries.get("metadata/model_settings.config")?.content;
   const plates = plateBuffer ? parseBambuPlates(plateBuffer) : [];
   const validPlates = plates

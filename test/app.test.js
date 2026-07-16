@@ -64,7 +64,7 @@ async function authenticateAdmin() {
   return response.headers.get("set-cookie").split(";", 1)[0];
 }
 
-function create3mfBuffer({ bambu = false, gcode = false, malformedModel = false, modelOverride, firstSize = [20, 30, 40], repeatFirstObject = false } = {}) {
+function create3mfBuffer({ bambu = false, gcode = false, malformedModel = false, modelOverride, secondaryModel, firstSize = [20, 30, 40], repeatFirstObject = false } = {}) {
   const secondBuildObjectId = repeatFirstObject ? 1 : 2;
   const model = modelOverride ?? (malformedModel ? "<model><broken>" : `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
@@ -97,6 +97,7 @@ function create3mfBuffer({ bambu = false, gcode = false, malformedModel = false,
   zip.addBuffer(Buffer.from(contentTypes), "[Content_Types].xml");
   zip.addBuffer(Buffer.from(relationships), "_rels/.rels");
   zip.addBuffer(Buffer.from(model), "3D/3dmodel.model");
+  if (secondaryModel) zip.addBuffer(Buffer.from(secondaryModel), "3D/Objects/secondary.model");
   if (bambu) {
     const plateConfig = `<?xml version="1.0" encoding="UTF-8"?>
 <config>
@@ -363,6 +364,27 @@ test("ispeziona, serve ed elimina un archivio 3MF generico", async () => {
   assert.equal(fileResponse.headers.get("content-type"), "model/3mf");
   assert.deepEqual(Buffer.from(await fileResponse.arrayBuffer()), archive);
   assert.equal((await fetch(`${baseUrl}/api/custom-models/${body.data.id}`, { method: "DELETE" })).status, 204);
+});
+
+test("accetta un singolo pezzo distribuito in piu parti modello 3MF", async () => {
+  const rootModel = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <resources><object id="1" type="model"><components><component objectid="3"/></components></object></resources>
+  <build><item objectid="1"/></build>
+</model>`;
+  const secondaryModel = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <resources><object id="3" type="model"><mesh><vertices>
+    <vertex x="0" y="0" z="0"/><vertex x="12" y="0" z="0"/><vertex x="0" y="14" z="0"/>
+  </vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object></resources>
+</model>`;
+  const form = new FormData();
+  form.append("model", new Blob([await create3mfBuffer({ modelOverride: rootModel, secondaryModel })]), "multipart.3mf");
+  const response = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: form });
+  const model = (await response.json()).data;
+  assert.equal(response.status, 201);
+  assert.deepEqual(model.inspection.boundsMm.size, [12, 14, 0]);
+  await fetch(`${baseUrl}/api/custom-models/${model.id}`, { method: "DELETE" });
 });
 
 test("rifiuta G-code 3MF e documenti XML non validi senza lasciare upload", async () => {

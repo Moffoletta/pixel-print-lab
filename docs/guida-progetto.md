@@ -1196,7 +1196,7 @@ Il modulo `src/model-files.js` verifica:
 - riferimenti, triangoli, trasformazioni e grafi di componenti;
 - massimo 100 piatti e 10.000 istanze Bambu.
 
-I 3MF con piu parti `.model` vengono per ora rifiutati, per evitare che `3MFLoader` elabori parti secondarie non rappresentate dall'ispezione.
+I 3MF possono contenere piu parti `.model` anche quando mostrano un solo pezzo. Tutte le parti vengono ispezionate con limiti globali; ID oggetto duplicati o unita discordanti vengono rifiutati perche produrrebbero riferimenti ambigui nel viewer.
 
 ### Primo Piatto
 
