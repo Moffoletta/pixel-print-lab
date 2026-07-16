@@ -1170,3 +1170,80 @@ I test coprono autorizzazione, CRUD dei prodotti, servizio e rimozione degli ass
 Catalogo, file e palette globale sono ora gestibili dalla Control Room. Gli ordini storici restano indipendenti dalle modifiche successive e lo storage distingue asset dimostrativi, upload temporanei, file degli ordini e file amministrativi del catalogo.
 
 La vista aggiornata dei componenti e dei flussi e mantenuta in [`ARCHITETTURA.md`](ARCHITETTURA.md). Ogni fase che modifica la struttura dell'applicazione deve aggiornare anche quel documento.
+
+## 27. Supporto Ai File 3MF
+
+### Ambito
+
+I modelli personali accettano ora file `.stl` e `.3mf`. I modelli del catalogo amministrativo restano STL: questa separazione mantiene invariato il flusso degli asset di prodotto.
+
+I progetti `.gcode.3mf` e gli archivi che contengono `Metadata/plate_N.gcode` vengono rifiutati. Il sito non interpreta ne esegue G-code.
+
+### Ispezione Prima Dell'Anteprima
+
+Un STL puo ancora essere mostrato localmente. Un 3MF viene invece caricato e controllato dal server prima di raggiungere `3MFLoader`, perche il formato e un archivio ZIP e puo espandersi molto oltre la dimensione compressa.
+
+Il modulo `src/model-files.js` verifica:
+
+- dimensione compressa massima di 50 MB;
+- massimo 256 parti e 30 MB complessivi dopo l'espansione;
+- massimo 25 MB per parte e rapporto di compressione 250:1;
+- percorsi relativi, univoci e senza attraversamento di directory;
+- assenza di cifratura e metodi ZIP non supportati;
+- relazione OPC verso un solo modello principale;
+- XML UTF-8 senza DTD o entita;
+- massimo 200.000 vertici, 400.000 triangoli, 100.000 componenti e 10.000 elementi di build;
+- riferimenti, triangoli, trasformazioni e grafi di componenti;
+- massimo 100 piatti e 10.000 istanze Bambu.
+
+I 3MF con piu parti `.model` vengono per ora rifiutati, per evitare che `3MFLoader` elabori parti secondarie non rappresentate dall'ispezione.
+
+### Primo Piatto
+
+Un 3MF generico non definisce piatti separati: la sua build viene trattata come primo piatto. Nei progetti Bambu Studio vengono letti `Metadata/model_settings.config`, `plater_id`, `object_id` e `instance_id`.
+
+La selezione usa le istanze esatte, quindi lo stesso oggetto puo comparire su piatti differenti senza essere mostrato due volte. Il viewer rimuove gli altri elementi della build e presenta soltanto il primo piatto.
+
+### Piatto Standard
+
+Non vengono riconosciute o confrontate stampanti specifiche. Il primo piatto viene confrontato soltanto con un volume informativo standard:
+
+```text
+256 x 256 x 256 mm
+```
+
+Il controllo considera unita, trasformazioni, componenti e posizione. Un modello fuori volume viene comunque accettato: l'avviso serve soltanto a indicare che potrebbe essere necessario correggerlo prima della stampa.
+
+### Viewer 3MF
+
+`public/viewer.js` seleziona `STLLoader` o `ThreeMFLoader` in base al formato. Per il 3MF:
+
+1. carica soltanto un archivio gia approvato dal server;
+2. conserva gli elementi indicati da `previewBuildItemIndexes`;
+3. converte l'unita del progetto in millimetri;
+4. centra il gruppo sul piano;
+5. conserva materiali supportati da Three.js;
+6. libera geometrie, materiali e texture alla chiusura.
+
+L'anteprima e uno strumento visivo, non una garanzia di stampabilita. Estensioni 3MF non supportate da Three.js possono apparire in modo semplificato.
+
+### Persistenza E Amministrazione
+
+La migrazione 5 aggiunge a `order_items`:
+
+```text
+model_format
+model_metadata_json
+```
+
+Gli ordini precedenti vengono marcati come STL. Per i nuovi 3MF il server ripete l'ispezione durante l'invio, conserva un riepilogo normalizzato nel database e copia il file originale senza modificarne i byte.
+
+Il pannello amministrativo mostra il formato e fornisce un download protetto con MIME e nome originali. Modificare una richiesta conserva formato e metadati del modello.
+
+### Verifiche
+
+I test coprono 3MF generici, Bambu multi-piatto, riuso dello stesso oggetto tra piatti, volume standard, limiti non arrotondati, grafi ciclici, XML errato, G-code, ordine persistente, download amministrativo e carrelli STL precedenti.
+
+## 28. Esito Del Supporto 3MF
+
+Il flusso dei modelli personali gestisce STL e 3MF dall'upload al download amministrativo. I file originali vengono conservati, il primo piatto e visualizzato dopo un'ispezione limitata e il confronto dimensionale resta volutamente indipendente dalla stampante usata.

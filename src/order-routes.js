@@ -5,10 +5,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   defaultUploadDirectory,
-  isValidStlFile,
   UPLOAD_TTL_MS,
   validateExternalModelUrl,
 } from "./custom-model-routes.js";
+import {
+  inspectModelFile,
+  MODEL_FORMATS,
+  ModelFileError,
+  modelExtension,
+  sanitizeOriginalModelName,
+} from "./model-files.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultOrderFileDirectory = path.join(currentDirectory, "..", "storage", "orders");
@@ -26,7 +32,7 @@ class OrderError extends Error {
 }
 
 function sendError(response, error) {
-  if (error instanceof OrderError) {
+  if (error instanceof OrderError || error instanceof ModelFileError) {
     return response.status(error.status).json({
       error: { code: error.code, message: error.message },
     });
@@ -57,21 +63,6 @@ export function validateQuantity(value) {
     throw new OrderError("INVALID_QUANTITY", "La quantita deve essere compresa tra 1 e 99.");
   }
   return value;
-}
-
-function sanitizeOriginalName(value) {
-  if (typeof value !== "string") {
-    throw new OrderError("INVALID_FILE_NAME", "Il nome del file STL non e valido.");
-  }
-  const normalized = path
-    .basename(value.replaceAll("\\", "/"))
-    .replace(/[\u0000-\u001f\u007f]/g, "_")
-    .trim()
-    .slice(0, 120);
-  if (!normalized || !normalized.toLowerCase().endsWith(".stl")) {
-    throw new OrderError("INVALID_FILE_NAME", "Il nome del file STL non e valido.");
-  }
-  return normalized;
 }
 
 function createOrderCode(database) {
@@ -114,6 +105,9 @@ export function buildEmail({ code, firstName, lastName, items, catalogTotalCents
       lines.push("   Prezzo: da definire");
     }
     if (item.originalName) lines.push(`   File: ${item.originalName}`);
+    if (item.modelFormat) lines.push(`   Formato: ${item.modelFormat.toUpperCase()}`);
+    if (item.modelMetadata?.printerProfile?.target) lines.push(`   Profilo: ${item.modelMetadata.printerProfile.target}`);
+    if (item.modelMetadata?.compatibility?.status) lines.push(`   Verifica piatto standard: ${item.modelMetadata.compatibility.status}`);
     if (item.externalUrl) lines.push(`   Link: ${item.externalUrl}`);
   });
 
@@ -152,10 +146,12 @@ export function registerOrderRoutes(
       order_id, position, item_type, product_id, product_code, product_name,
       unit_price_cents, color_id, color_name, color_hex, quantity,
       original_name, source_name, external_url, model_filename
+      , model_format, model_metadata_json
     ) VALUES (
       @orderId, @position, @itemType, @productId, @productCode, @productName,
       @unitPriceCents, @colorId, @colorName, @colorHex, @quantity,
       @originalName, @sourceName, @externalUrl, @modelFilename
+      , @modelFormat, @modelMetadataJson
     )
   `);
   const saveOrder = database.transaction((order) => {
@@ -225,6 +221,8 @@ export function registerOrderRoutes(
             sourceName: null,
             externalUrl: null,
             modelFilename: null,
+            modelFormat: null,
+            modelMetadataJson: null,
           });
           continue;
         }
@@ -235,43 +233,47 @@ export function registerOrderRoutes(
 
         if (item.sourceType === "file") {
           if (typeof item.id !== "string" || !UUID_PATTERN.test(item.id)) {
-            throw new OrderError("UPLOAD_NOT_FOUND", "Il file STL temporaneo non e valido.");
+            throw new OrderError("UPLOAD_NOT_FOUND", "Il file modello temporaneo non e valido.");
           }
+          const modelFormat = item.modelFormat ?? "stl";
+          if (!MODEL_FORMATS.has(modelFormat)) throw new OrderError("UNSUPPORTED_MODEL_FORMAT", "Il formato del modello non e supportato.");
           const uniqueKey = `file:${item.id}:${item.colorId}`;
           if (seenItems.has(uniqueKey)) {
             throw new OrderError("DUPLICATE_ITEM", "La richiesta contiene elementi duplicati.");
           }
           seenItems.add(uniqueKey);
-          const temporaryFilename = path.join(uploadDirectory, `${item.id}.stl`);
+          const temporaryFilename = path.join(uploadDirectory, `${item.id}${modelExtension(modelFormat)}`);
           let fileStats;
           try {
             fileStats = await stat(temporaryFilename);
           } catch (error) {
             if (error.code === "ENOENT") {
-              throw new OrderError("UPLOAD_NOT_FOUND", "Un file STL non esiste piu.", 410);
+              throw new OrderError("UPLOAD_NOT_FOUND", "Un file modello non esiste piu.", 410);
             }
             throw error;
           }
           if (Date.now() - fileStats.mtimeMs > UPLOAD_TTL_MS) {
-            throw new OrderError("UPLOAD_EXPIRED", "Un file STL temporaneo e scaduto.", 410);
+            throw new OrderError("UPLOAD_EXPIRED", "Un file modello temporaneo e scaduto.", 410);
           }
-          if (!(await isValidStlFile(temporaryFilename))) {
-            throw new OrderError("INVALID_STL_CONTENT", "Un file STL non e piu valido.");
-          }
+          const modelMetadata = await inspectModelFile(temporaryFilename, modelFormat);
+          const originalName = sanitizeOriginalModelName(item.name, modelFormat);
           validatedItems.push({
             itemType: "custom_file",
             productId: null,
             productCode: null,
-            productName: sanitizeOriginalName(item.name),
+            productName: originalName,
             unitPriceCents: null,
             colorId: color.id,
             colorName: color.name,
             colorHex: color.hex_value,
             quantity,
-            originalName: sanitizeOriginalName(item.name),
+            originalName,
             sourceName: null,
             externalUrl: null,
             modelFilename: null,
+            modelFormat,
+            modelMetadata,
+            modelMetadataJson: modelMetadata ? JSON.stringify(modelMetadata) : null,
             uploadId: item.id,
             temporaryFilename,
           });
@@ -304,6 +306,8 @@ export function registerOrderRoutes(
             sourceName: link.sourceName,
             externalUrl: link.externalUrl,
             modelFilename: null,
+            modelFormat: null,
+            modelMetadataJson: null,
           });
           continue;
         }
@@ -316,7 +320,7 @@ export function registerOrderRoutes(
       for (const item of validatedItems.filter(({ itemType }) => itemType === "custom_file")) {
         let permanentFilename = copiedByUpload.get(item.uploadId);
         if (!permanentFilename) {
-          permanentFilename = `${code}-${item.uploadId}.stl`;
+          permanentFilename = `${code}-${item.uploadId}${modelExtension(item.modelFormat)}`;
           const destination = path.join(orderFileDirectory, permanentFilename);
           await copyFile(item.temporaryFilename, destination, fileConstants.COPYFILE_EXCL);
           copiedFiles.push(destination);

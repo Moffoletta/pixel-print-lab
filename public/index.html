@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Scegli un modello o proponi il tuo file STL per una stampa 3D.">
+    <meta name="description" content="Scegli un modello o proponi il tuo file STL o 3MF per una stampa 3D.">
     <title>Pixel Print Lab | Stampe 3D</title>
     <link rel="stylesheet" href="/styles.css">
     <script type="importmap">
@@ -103,19 +103,19 @@
       <section class="custom-model" id="modello-personale" aria-labelledby="titolo-modello-personale">
         <div class="custom-model__intro">
           <div class="custom-model__icon" aria-hidden="true">
-            <span>.STL</span>
+            <span>3MF</span>
           </div>
           <div>
             <p class="section-number">02 / Fuori catalogo</p>
             <h2 id="titolo-modello-personale">Hai gia un modello?</h2>
-            <p>Carica un file STL fino a 50 MB oppure indica un link da uno dei siti supportati.</p>
+            <p>Carica un file STL o 3MF fino a 50 MB oppure indica un link da uno dei siti supportati.</p>
           </div>
         </div>
 
         <form class="custom-form" id="custom-model-form">
           <fieldset class="source-selector">
             <legend>Sorgente del modello</legend>
-            <label><input type="radio" name="custom-source" value="file" checked> File STL</label>
+            <label><input type="radio" name="custom-source" value="file" checked> File STL o 3MF</label>
             <label><input type="radio" name="custom-source" value="link"> Link esterno</label>
           </fieldset>
 
@@ -123,10 +123,10 @@
             <label class="file-field" for="custom-file">
               <span class="file-field__title">Seleziona il file</span>
               <span class="file-field__value" id="custom-file-name">Nessun file selezionato</span>
-              <input id="custom-file" name="model" type="file" accept=".stl,model/stl">
+              <input id="custom-file" name="model" type="file" accept=".stl,.3mf,model/stl,model/3mf">
             </label>
-            <p class="field-hint">Solo `.stl`, massimo 50 MB. Il file temporaneo scade dopo 24 ore.</p>
-            <button class="preview-file" id="custom-preview" type="button" disabled>Visualizza STL</button>
+            <p class="field-hint">File `.stl` o `.3mf`, massimo 50 MB. I `.gcode.3mf` sono esclusi. Il file temporaneo scade dopo 24 ore.</p>
+            <button class="preview-file" id="custom-preview" type="button" disabled>Visualizza modello</button>
           </div>
 
           <div class="custom-source-panel" id="custom-link-panel" hidden>
@@ -155,7 +155,7 @@
 
     <footer class="site-footer">
       <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
-      <p>Progetto locale <span aria-hidden="true">[fase 07]</span></p>
+      <p>Progetto locale <span aria-hidden="true">[supporto 3MF]</span></p>
     </footer>
 
     <dialog class="cart-dialog" id="cart-dialog" aria-labelledby="cart-title">
@@ -214,7 +214,7 @@
       <div class="viewer-panel">
         <header class="viewer-panel__header">
           <div>
-            <p class="section-number">Anteprima STL</p>
+            <p class="section-number">Anteprima modello</p>
             <h2 id="viewer-title">Modello 3D</h2>
           </div>
           <form method="dialog">

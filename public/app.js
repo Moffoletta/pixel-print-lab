@@ -44,7 +44,7 @@ const customColorOptions = document.querySelector("#custom-color-options");
 const customQuantityInput = document.querySelector("#custom-quantity");
 const customSubmitButton = document.querySelector("#custom-submit");
 const customFeedback = document.querySelector("#custom-feedback");
-const MAX_STL_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_MODEL_FILE_SIZE = 50 * 1024 * 1024;
 const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
   currency: "EUR",
@@ -56,6 +56,8 @@ let productsById = new Map();
 let colorsById = new Map();
 let cart = readCart();
 let viewerModulePromise;
+let inspectedUpload;
+let uploadGeneration = 0;
 
 function readCart() {
   try {
@@ -184,7 +186,7 @@ function createCartItem(item) {
     setText(
       element,
       "cart-code",
-      item.sourceType === "file" ? "STL personale" : `Link / ${item.sourceName}`,
+      item.sourceType === "file" ? `${(item.modelFormat ?? "stl").toUpperCase()} personale` : `Link / ${item.sourceName}`,
     );
     setText(element, "cart-name", item.name);
     setText(element, "cart-unit-price", "Prezzo da definire");
@@ -257,6 +259,12 @@ function getCustomSource() {
   return customForm.elements.namedItem("custom-source").value;
 }
 
+function discardInspectedUpload() {
+  uploadGeneration += 1;
+  if (inspectedUpload) fetch(`/api/custom-models/${inspectedUpload.id}`, { method: "DELETE" }).catch(console.error);
+  inspectedUpload = undefined;
+}
+
 function updateCustomSource() {
   const source = getCustomSource();
   const usesFile = source === "file";
@@ -264,6 +272,7 @@ function updateCustomSource() {
   customLinkPanel.hidden = usesFile;
   customFileInput.required = usesFile;
   customLinkInput.required = !usesFile;
+  if (!usesFile) discardInspectedUpload();
   customFeedback.textContent = "";
   customFeedback.classList.remove("custom-feedback--error");
 }
@@ -271,18 +280,50 @@ function updateCustomSource() {
 function validateSelectedFile() {
   const file = customFileInput.files[0];
   if (!file) {
-    throw new Error("Seleziona un file STL.");
+    throw new Error("Seleziona un file STL o 3MF.");
   }
-  if (!file.name.toLowerCase().endsWith(".stl")) {
-    throw new Error("Il file deve avere estensione .stl.");
+  const lowerName = file.name.toLowerCase();
+  if (lowerName.endsWith(".gcode.3mf")) {
+    throw new Error("I file .gcode.3mf non sono supportati.");
+  }
+  if (!lowerName.endsWith(".stl") && !lowerName.endsWith(".3mf")) {
+    throw new Error("Il file deve avere estensione .stl o .3mf.");
   }
   if (file.size === 0) {
-    throw new Error("Il file STL e vuoto.");
+    throw new Error("Il file modello e vuoto.");
   }
-  if (file.size > MAX_STL_FILE_SIZE) {
-    throw new Error("Il file STL non puo superare 50 MB.");
+  if (file.size > MAX_MODEL_FILE_SIZE) {
+    throw new Error("Il file modello non puo superare 50 MB.");
   }
   return file;
+}
+
+function selectedModelFormat(file) {
+  return file.name.toLowerCase().endsWith(".3mf") ? "3mf" : "stl";
+}
+
+function uploadMatchesFile(upload, file) {
+  return upload?.sourceFileName === file.name && upload.sourceFileSize === file.size && upload.sourceFileModified === file.lastModified;
+}
+
+async function uploadModel(file) {
+  const uploadData = new FormData();
+  uploadData.append("model", file);
+  const upload = await parseApiResponse(await fetch("/api/custom-models/upload", { method: "POST", body: uploadData }));
+  return { ...upload, sourceFileName: file.name, sourceFileSize: file.size, sourceFileModified: file.lastModified };
+}
+
+async function inspectedModelFor(file) {
+  if (uploadMatchesFile(inspectedUpload, file)) return inspectedUpload;
+  const generation = uploadGeneration;
+  const upload = await uploadModel(file);
+  const currentFile = customFileInput.files[0];
+  if (generation !== uploadGeneration || getCustomSource() !== "file" || !currentFile || !uploadMatchesFile(upload, currentFile)) {
+    fetch(`/api/custom-models/${upload.id}`, { method: "DELETE" }).catch(console.error);
+    throw new Error("Il file selezionato e cambiato durante il controllo.");
+  }
+  inspectedUpload = upload;
+  return upload;
 }
 
 async function parseApiResponse(response) {
@@ -313,6 +354,7 @@ async function reconcileUploadedFiles(items) {
 customSourceInputs.forEach((input) => input.addEventListener("change", updateCustomSource));
 
 customFileInput.addEventListener("change", () => {
+  discardInspectedUpload();
   const file = customFileInput.files[0];
   customFileName.textContent = file?.name ?? "Nessun file selezionato";
   customPreviewButton.disabled = !file;
@@ -323,13 +365,25 @@ customPreviewButton.addEventListener("click", async () => {
   let objectUrl;
   try {
     const file = validateSelectedFile();
-    objectUrl = URL.createObjectURL(file);
     const { openModelViewer } = await getViewerModule();
-    await openModelViewer({ name: file.name, modelUrl: objectUrl });
+    if (selectedModelFormat(file) === "3mf") {
+      customPreviewButton.disabled = true;
+      customFeedback.textContent = "Controllo del progetto 3MF...";
+      inspectedUpload = await inspectedModelFor(file);
+      await openModelViewer(inspectedUpload);
+      const compatibility = inspectedUpload.inspection?.compatibility;
+      customFeedback.textContent = compatibility?.status === "incompatible"
+        ? compatibility.warnings[0]?.message ?? "Il progetto supera il volume della stampante."
+        : "Primo piatto pronto e compreso nel volume standard.";
+    } else {
+      objectUrl = URL.createObjectURL(file);
+      await openModelViewer({ name: file.name, modelUrl: objectUrl, modelFormat: "stl" });
+    }
   } catch (error) {
     customFeedback.textContent = error.message;
     customFeedback.classList.add("custom-feedback--error");
   } finally {
+    customPreviewButton.disabled = !customFileInput.files[0];
     if (objectUrl) {
       URL.revokeObjectURL(objectUrl);
     }
@@ -344,18 +398,15 @@ customForm.addEventListener("submit", async (event) => {
   let uploadedId;
 
   customSubmitButton.disabled = true;
-  customSubmitButton.textContent = sourceType === "file" ? "Caricamento STL..." : "Controllo link...";
+  customSubmitButton.textContent = sourceType === "file" ? "Controllo modello..." : "Controllo link...";
   customFeedback.textContent = "";
   customFeedback.classList.remove("custom-feedback--error");
 
   try {
     let customModel;
     if (sourceType === "file") {
-      const uploadData = new FormData();
-      uploadData.append("model", validateSelectedFile());
-      customModel = await parseApiResponse(
-        await fetch("/api/custom-models/upload", { method: "POST", body: uploadData }),
-      );
+      const file = validateSelectedFile();
+      customModel = await inspectedModelFor(file);
       uploadedId = customModel.id;
     } else {
       customModel = await parseApiResponse(
@@ -367,8 +418,9 @@ customForm.addEventListener("submit", async (event) => {
       );
     }
 
+    const { sourceFileName: _sourceFileName, sourceFileSize: _sourceFileSize, sourceFileModified: _sourceFileModified, ...modelData } = customModel;
     cart = addCustomCartItem(cart, {
-      ...customModel,
+      ...modelData,
       sourceType,
       colorId,
       quantity,
@@ -380,10 +432,12 @@ customForm.addEventListener("submit", async (event) => {
     customPreviewButton.disabled = true;
     updateCustomSource();
     customFeedback.textContent = "Richiesta aggiunta al carrello. Prezzo da definire.";
+    inspectedUpload = undefined;
     uploadedId = undefined;
   } catch (error) {
     if (uploadedId) {
       fetch(`/api/custom-models/${uploadedId}`, { method: "DELETE" }).catch(console.error);
+      if (inspectedUpload?.id === uploadedId) inspectedUpload = undefined;
     }
     customFeedback.textContent = error.message;
     customFeedback.classList.add("custom-feedback--error");
@@ -430,6 +484,7 @@ function serializeOrderItem(item) {
       sourceType: "file",
       id: item.id,
       name: item.name,
+      modelFormat: item.modelFormat ?? "stl",
       colorId: item.colorId,
       quantity: item.quantity,
     };

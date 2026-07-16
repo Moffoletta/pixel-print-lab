@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import Database from "better-sqlite3";
+import yazl from "yazl";
 import { createApp } from "../src/app.js";
 import {
   cleanupExpiredUploads,
@@ -63,6 +64,65 @@ async function authenticateAdmin() {
   return response.headers.get("set-cookie").split(";", 1)[0];
 }
 
+function create3mfBuffer({ bambu = false, gcode = false, malformedModel = false, modelOverride, firstSize = [20, 30, 40], repeatFirstObject = false } = {}) {
+  const secondBuildObjectId = repeatFirstObject ? 1 : 2;
+  const model = modelOverride ?? (malformedModel ? "<model><broken>" : `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <metadata name="Title">Progetto di test</metadata>
+  <resources>
+    <object id="1" type="model"><mesh><vertices>
+      <vertex x="0" y="0" z="0"/><vertex x="${firstSize[0]}" y="0" z="0"/>
+      <vertex x="0" y="${firstSize[1]}" z="0"/><vertex x="0" y="0" z="${firstSize[2]}"/>
+    </vertices><triangles>
+      <triangle v1="0" v2="1" v3="2"/><triangle v1="0" v2="1" v3="3"/>
+      <triangle v1="0" v2="2" v3="3"/><triangle v1="1" v2="2" v3="3"/>
+    </triangles></mesh></object>
+    <object id="2" type="model"><mesh><vertices>
+      <vertex x="0" y="0" z="0"/><vertex x="200" y="0" z="0"/>
+      <vertex x="0" y="200" z="0"/><vertex x="0" y="0" z="200"/>
+    </vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+  </resources>
+  <build><item objectid="1"/><item objectid="${secondBuildObjectId}" transform="1 0 0 0 1 0 0 0 1 250 0 0"/></build>
+</model>`);
+  const relationships = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
+</Relationships>`;
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
+</Types>`;
+  const zip = new yazl.ZipFile();
+  zip.addBuffer(Buffer.from(contentTypes), "[Content_Types].xml");
+  zip.addBuffer(Buffer.from(relationships), "_rels/.rels");
+  zip.addBuffer(Buffer.from(model), "3D/3dmodel.model");
+  if (bambu) {
+    const plateConfig = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="Primo"/>
+    <model_instance><metadata key="object_id" value="1"/><metadata key="instance_id" value="1"/></model_instance>
+  </plate>
+  <plate><metadata key="plater_id" value="2"/><metadata key="plater_name" value="Secondo"/>
+    <model_instance><metadata key="object_id" value="${secondBuildObjectId}"/><metadata key="instance_id" value="${repeatFirstObject ? 2 : 1}"/></model_instance>
+  </plate>
+</config>`;
+    zip.addBuffer(Buffer.from(plateConfig), "Metadata/model_settings.config");
+    zip.addBuffer(Buffer.from(JSON.stringify({
+      printer_settings_id: "Profilo conservato nel file originale",
+      printer_model: "Stampante non usata dalla validazione",
+    })), "Metadata/project_settings.config");
+  }
+  if (gcode) zip.addBuffer(Buffer.from("G1 X0 Y0"), "Metadata/plate_1.gcode");
+  zip.end();
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    zip.outputStream.on("data", (chunk) => chunks.push(chunk));
+    zip.outputStream.once("error", reject);
+    zip.outputStream.once("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
 test("espone lo stato di salute del server", async () => {
   const response = await fetch(`${baseUrl}/api/health`);
 
@@ -105,6 +165,7 @@ test("serve gli asset pubblici", async () => {
     "/models/supporto-controller.stl",
     "/vendor/three/build/three.module.js",
     "/vendor/three/examples/jsm/loaders/STLLoader.js",
+    "/vendor/three/examples/jsm/loaders/3MFLoader.js",
     "/admin.html",
     "/admin.css",
     "/admin.js",
@@ -162,7 +223,7 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 4);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 5);
 });
 
 test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli ID", () => {
@@ -192,6 +253,9 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
       );
       CREATE INDEX products_visible_sort_idx ON products (visible, sort_order, id);
       CREATE INDEX colors_active_sort_idx ON colors (active, sort_order, id);
+      CREATE TABLE order_items (
+        id INTEGER PRIMARY KEY, item_type TEXT NOT NULL, model_filename TEXT
+      );
       INSERT INTO products VALUES (
         7, 'LEGACY', 'legacy', 'Legacy', 'Test', 'Dato esistente', 500,
         '/images/legacy.png', 'Legacy', 'Lato', '5 cm', 'PLA', NULL, 1, 10,
@@ -200,6 +264,7 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
       INSERT INTO colors VALUES (
         9, 'Legacy', '#123456', 1, 10, '2025-01-01 10:00:00', '2025-02-01 10:00:00'
       );
+      INSERT INTO order_items (id, item_type, model_filename) VALUES (1, 'custom_file', 'legacy.stl');
     `);
 
     const productBefore = legacyDatabase.prepare("SELECT * FROM products").get();
@@ -210,7 +275,8 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
     assert.deepEqual(legacyDatabase.prepare("SELECT * FROM colors").get(), colorBefore);
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'products'").get().sql, /AUTOINCREMENT/);
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
-    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 4);
+    assert.equal(legacyDatabase.prepare("SELECT model_format FROM order_items WHERE id = 1").get().model_format, "stl");
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 5);
     legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
     const nextId = Number(legacyDatabase.prepare(`
       INSERT INTO products (
@@ -277,6 +343,99 @@ test("accetta anche un file STL binario", async () => {
   await fetch(`${baseUrl}/api/custom-models/${body.data.id}`, { method: "DELETE" });
 });
 
+test("ispeziona, serve ed elimina un archivio 3MF generico", async () => {
+  const archive = await create3mfBuffer();
+  const form = new FormData();
+  form.append("model", new Blob([archive], { type: "model/3mf" }), "progetto.3mf");
+  const response = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: form });
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.equal(body.data.modelFormat, "3mf");
+  assert.equal(body.data.inspection.projectType, "generic");
+  assert.equal(body.data.inspection.plateCount, 1);
+  assert.deepEqual(body.data.inspection.previewBuildItemIndexes, [0, 1]);
+  assert.deepEqual(body.data.inspection.boundsMm.size, [450, 200, 40]);
+  assert.equal(body.data.inspection.compatibility.status, "incompatible");
+  assert.deepEqual(body.data.inspection.referencePlate.volumeMm, [256, 256, 256]);
+  const fileResponse = await fetch(`${baseUrl}${body.data.modelUrl}`);
+  assert.equal(fileResponse.status, 200);
+  assert.equal(fileResponse.headers.get("content-type"), "model/3mf");
+  assert.deepEqual(Buffer.from(await fileResponse.arrayBuffer()), archive);
+  assert.equal((await fetch(`${baseUrl}/api/custom-models/${body.data.id}`, { method: "DELETE" })).status, 204);
+});
+
+test("rifiuta G-code 3MF e documenti XML non validi senza lasciare upload", async () => {
+  const generic = await create3mfBuffer();
+  const namedGcode = new FormData();
+  namedGcode.append("model", new Blob([generic]), "progetto.gcode.3mf");
+  const namedResponse = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: namedGcode });
+  assert.equal(namedResponse.status, 400);
+  assert.equal((await namedResponse.json()).error.code, "GCODE_3MF_NOT_SUPPORTED");
+
+  const embeddedGcode = new FormData();
+  embeddedGcode.append("model", new Blob([await create3mfBuffer({ gcode: true })]), "rinominato.3mf");
+  const embeddedResponse = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: embeddedGcode });
+  assert.equal(embeddedResponse.status, 400);
+  assert.equal((await embeddedResponse.json()).error.code, "GCODE_3MF_NOT_SUPPORTED");
+
+  const malformed = new FormData();
+  malformed.append("model", new Blob([await create3mfBuffer({ malformedModel: true })]), "rotto.3mf");
+  const malformedResponse = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: malformed });
+  assert.equal(malformedResponse.status, 400);
+  assert.equal((await malformedResponse.json()).error.code, "INVALID_3MF_XML");
+  assert.equal((await readdir(uploadDirectory)).length, 0);
+});
+
+test("usa un unico piatto standard come riferimento informativo", async () => {
+  for (const scenario of [
+    { size: 250, expectedStatus: "compatible" },
+    { size: 260, expectedStatus: "incompatible" },
+    { size: 256.0004, expectedStatus: "incompatible" },
+  ]) {
+    const archive = await create3mfBuffer({
+      bambu: true,
+      firstSize: [scenario.size, 30, 40],
+    });
+    const form = new FormData();
+    form.append("model", new Blob([archive]), `standard-${scenario.size}.3mf`);
+    const response = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: form });
+    const model = (await response.json()).data;
+    assert.equal(response.status, 201);
+    assert.equal(model.inspection.compatibility.status, scenario.expectedStatus);
+    assert.equal(model.inspection.compatibility.target, "Piatto standard");
+    await fetch(`${baseUrl}/api/custom-models/${model.id}`, { method: "DELETE" });
+  }
+});
+
+test("rifiuta grafi di componenti 3MF ciclici", async () => {
+  const cyclicModel = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+  <resources>
+    <object id="1" type="model"><components><component objectid="2"/></components></object>
+    <object id="2" type="model"><components><component objectid="1"/></components></object>
+  </resources>
+  <build><item objectid="1"/></build>
+</model>`;
+  const form = new FormData();
+  form.append("model", new Blob([await create3mfBuffer({ modelOverride: cyclicModel })]), "ciclo.3mf");
+  const response = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: form });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "INVALID_3MF_COMPONENTS");
+  assert.equal((await readdir(uploadDirectory)).length, 0);
+});
+
+test("seleziona l'istanza esatta quando due piatti Bambu riusano lo stesso oggetto", async () => {
+  const form = new FormData();
+  form.append("model", new Blob([await create3mfBuffer({ bambu: true, repeatFirstObject: true })]), "istanze.3mf");
+  const response = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: form });
+  const model = (await response.json()).data;
+  assert.equal(response.status, 201);
+  assert.deepEqual(model.inspection.previewBuildItemIndexes, [0]);
+  assert.deepEqual(model.inspection.boundsMm.size, [20, 30, 40]);
+  await fetch(`${baseUrl}/api/custom-models/${model.id}`, { method: "DELETE" });
+});
+
 test("rifiuta estensioni e contenuti STL non validi", async () => {
   const wrongExtension = new FormData();
   wrongExtension.append("model", new Blob(["solid test"]), "prova.txt");
@@ -293,7 +452,7 @@ test("rifiuta estensioni e contenuti STL non validi", async () => {
   });
 
   assert.equal(extensionResponse.status, 400);
-  assert.equal((await extensionResponse.json()).error.code, "INVALID_STL_EXTENSION");
+  assert.equal((await extensionResponse.json()).error.code, "INVALID_MODEL_EXTENSION");
   assert.equal(contentResponse.status, 400);
   assert.equal((await contentResponse.json()).error.code, "INVALID_STL_CONTENT");
   assert.equal((await readdir(uploadDirectory)).length, 0);
@@ -311,7 +470,7 @@ test("rifiuta un file che supera 50 MB", async () => {
   const body = await response.json();
 
   assert.equal(response.status, 413);
-  assert.equal(body.error.code, "STL_TOO_LARGE");
+  assert.equal(body.error.code, "MODEL_TOO_LARGE");
   assert.equal((await readdir(uploadDirectory)).length, 0);
 });
 
@@ -350,6 +509,77 @@ test("elimina gli upload temporanei scaduti", async () => {
   await cleanupExpiredUploads(uploadDirectory);
 
   await assert.rejects(stat(expiredFile), { code: "ENOENT" });
+});
+
+test("conserva progetto Bambu 3MF, primo piatto e metadati nell'ordine", async () => {
+  const archive = await create3mfBuffer({ bambu: true });
+  const uploadForm = new FormData();
+  uploadForm.append("model", new Blob([archive], { type: "model/3mf" }), "bambu-a1-mini.3mf");
+  const uploadResponse = await fetch(`${baseUrl}/api/custom-models/upload`, { method: "POST", body: uploadForm });
+  const upload = (await uploadResponse.json()).data;
+  assert.equal(uploadResponse.status, 201);
+  assert.equal(upload.inspection.projectType, "bambu");
+  assert.equal(upload.inspection.plateCount, 2);
+  assert.deepEqual(upload.inspection.previewBuildItemIndexes, [0]);
+  assert.deepEqual(upload.inspection.boundsMm.size, [20, 30, 40]);
+  assert.deepEqual(upload.inspection.referencePlate.volumeMm, [256, 256, 256]);
+  assert.equal(upload.inspection.compatibility.status, "compatible");
+
+  const orderResponse = await fetch(`${baseUrl}/api/orders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Ada",
+      lastName: "Bambu",
+      items: [{
+        type: "custom",
+        sourceType: "file",
+        id: upload.id,
+        name: upload.name,
+        modelFormat: "3mf",
+        colorId: 1,
+        quantity: 1,
+      }],
+    }),
+  });
+  const code = (await orderResponse.json()).data.code;
+  assert.equal(orderResponse.status, 201);
+  const order = database.prepare("SELECT * FROM orders WHERE code = ?").get(code);
+  const storedItem = database.prepare("SELECT * FROM order_items WHERE order_id = ?").get(order.id);
+  assert.equal(storedItem.model_format, "3mf");
+  assert.equal(JSON.parse(storedItem.model_metadata_json).plateCount, 2);
+  assert.deepEqual(await readFile(path.join(orderFileDirectory, storedItem.model_filename)), archive);
+  assert.equal((await fetch(`${baseUrl}${upload.modelUrl}`)).status, 404);
+
+  const cookie = await authenticateAdmin();
+  const adminFetch = (pathName, options = {}) => fetch(`${baseUrl}${pathName}`, {
+    ...options,
+    headers: { cookie, ...(options.headers ?? {}) },
+  });
+  const detail = (await (await adminFetch(`/api/admin/orders/${order.id}`)).json()).data;
+  assert.equal(detail.items[0].modelFormat, "3mf");
+  assert.equal(detail.items[0].modelMetadata.previewPlate, 1);
+  const download = await adminFetch(`/api/admin/orders/${order.id}/items/${detail.items[0].id}/model`);
+  assert.equal(download.status, 200);
+  assert.equal(download.headers.get("content-type"), "model/3mf");
+  assert.match(download.headers.get("content-disposition"), /bambu-a1-mini\.3mf/i);
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), archive);
+
+  const update = await adminFetch(`/api/admin/orders/${order.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Ada",
+      lastName: "Bambu",
+      items: [{ id: detail.items[0].id, itemType: "custom_file", colorId: 1, quantity: 2 }],
+    }),
+  });
+  assert.equal(update.status, 200);
+  const updatedItem = database.prepare("SELECT * FROM order_items WHERE order_id = ?").get(order.id);
+  assert.equal(updatedItem.model_format, "3mf");
+  assert.equal(JSON.parse(updatedItem.model_metadata_json).plateCount, 2);
+  assert.equal((await adminFetch(`/api/admin/orders/${order.id}`, { method: "DELETE" })).status, 204);
+  await assert.rejects(stat(path.join(orderFileDirectory, storedItem.model_filename)), { code: "ENOENT" });
 });
 
 test("crea una richiesta mista con snapshot, file permanente ed email simulata", async () => {

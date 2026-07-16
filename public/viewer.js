@@ -1,13 +1,16 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
+import { ThreeMFLoader } from "three/addons/loaders/3MFLoader.js";
 
 const dialog = document.querySelector("#viewer-dialog");
 const title = document.querySelector("#viewer-title");
 const viewport = document.querySelector("#viewer-viewport");
 const status = document.querySelector("#viewer-status");
 const resetButton = document.querySelector("#viewer-reset");
-const loader = new STLLoader();
+const stlLoader = new STLLoader();
+const threeMfLoader = new ThreeMFLoader();
+const unitFactors = { micron: 0.001, millimeter: 1, centimeter: 10, inch: 25.4, foot: 304.8, meter: 1000 };
 
 let renderer;
 let scene;
@@ -64,8 +67,7 @@ function initializeViewer() {
 function clearModel() {
   if (model) {
     scene.remove(model);
-    model.geometry.dispose();
-    model.material.dispose();
+    disposeObject(model);
     model = undefined;
   }
   if (grid) {
@@ -76,22 +78,40 @@ function clearModel() {
   }
 }
 
-function placeModel(geometry) {
-  geometry.rotateX(-Math.PI / 2);
-  geometry.computeBoundingBox();
-  const firstBox = geometry.boundingBox;
-  const center = firstBox.getCenter(new THREE.Vector3());
-  geometry.translate(-center.x, -firstBox.min.y, -center.z);
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  geometry.computeVertexNormals();
+function collectResources(object) {
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+  object.traverse((child) => {
+    if (child.geometry) geometries.add(child.geometry);
+    const childMaterials = Array.isArray(child.material) ? child.material : [child.material];
+    childMaterials.filter(Boolean).forEach((material) => materials.add(material));
+  });
+  materials.forEach((material) => {
+    Object.values(material).forEach((value) => { if (value?.isTexture) textures.add(value); });
+  });
+  return { geometries, materials, textures };
+}
 
-  const size = geometry.boundingBox.getSize(new THREE.Vector3());
+function disposeObject(object, protectedResources = { geometries: new Set(), materials: new Set(), textures: new Set() }) {
+  const resources = collectResources(object);
+  resources.geometries.forEach((geometry) => { if (!protectedResources.geometries.has(geometry)) geometry.dispose(); });
+  resources.materials.forEach((material) => { if (!protectedResources.materials.has(material)) material.dispose(); });
+  resources.textures.forEach((texture) => { if (!protectedResources.textures.has(texture)) texture.dispose(); });
+}
+
+function placeModel(object) {
+  object.rotation.x = -Math.PI / 2;
+  object.updateMatrixWorld(true);
+  const firstBox = new THREE.Box3().setFromObject(object);
+  if (firstBox.isEmpty()) throw new Error("Il modello non contiene geometrie visualizzabili.");
+  const center = firstBox.getCenter(new THREE.Vector3());
+  object.position.add(new THREE.Vector3(-center.x, -firstBox.min.y, -center.z));
+  object.updateMatrixWorld(true);
+  const finalBox = new THREE.Box3().setFromObject(object);
+  const size = finalBox.getSize(new THREE.Vector3());
   const largestDimension = Math.max(size.x, size.y, size.z, 1);
-  model = new THREE.Mesh(
-    geometry,
-    new THREE.MeshStandardMaterial({ color: 0xff6534, roughness: 0.72, metalness: 0.02, flatShading: true }),
-  );
+  model = object;
   scene.add(model);
 
   const gridSize = largestDimension * 3.5;
@@ -149,20 +169,45 @@ export async function openModelViewer(product) {
     startRendering();
   });
 
+  let loadedObject;
   try {
     if (!product.modelUrl) {
-      throw new Error("Il prodotto non ha un file STL associato.");
+      throw new Error("Il prodotto non ha un file modello associato.");
     }
-    const geometry = await loader.loadAsync(product.modelUrl);
+    const modelFormat = product.modelFormat ?? (product.modelUrl.toLowerCase().endsWith(".3mf") ? "3mf" : "stl");
+    if (modelFormat === "3mf") {
+      loadedObject = await threeMfLoader.loadAsync(product.modelUrl);
+      const previewIndexes = new Set(product.inspection?.previewBuildItemIndexes ?? loadedObject.children.map((_child, index) => index));
+      const removedChildren = [];
+      [...loadedObject.children].forEach((child, index) => {
+        if (!previewIndexes.has(index)) {
+          loadedObject.remove(child);
+          removedChildren.push(child);
+        }
+      });
+      const retainedResources = collectResources(loadedObject);
+      removedChildren.forEach((child) => disposeObject(child, retainedResources));
+      const unitFactor = unitFactors[product.inspection?.unit ?? "millimeter"];
+      if (!unitFactor) throw new Error("Unita 3MF non supportata.");
+      loadedObject.scale.setScalar(unitFactor);
+    } else {
+      const geometry = await stlLoader.loadAsync(product.modelUrl);
+      geometry.computeVertexNormals();
+      loadedObject = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color: 0xff6534, roughness: 0.72, metalness: 0.02, flatShading: true }),
+      );
+    }
     if (currentLoad !== loadVersion) {
-      geometry.dispose();
+      disposeObject(loadedObject);
       return;
     }
-    placeModel(geometry);
+    placeModel(loadedObject);
     viewport.classList.remove("viewer-viewport--loading");
     status.hidden = true;
     resetButton.disabled = false;
   } catch (error) {
+    if (loadedObject && loadedObject !== model) disposeObject(loadedObject);
     console.error(error);
     viewport.classList.remove("viewer-viewport--loading");
     viewport.classList.add("viewer-viewport--error");
@@ -174,5 +219,6 @@ resetButton.addEventListener("click", resetView);
 dialog.addEventListener("close", () => {
   loadVersion += 1;
   renderer?.setAnimationLoop(null);
+  clearModel();
   viewport.classList.remove("viewer-viewport--error", "viewer-viewport--loading");
 });

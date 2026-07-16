@@ -538,3 +538,47 @@ Prova Ordini e Catalogo sopra e sotto 900 px e 560 px. Controlla navigazione, si
 5. Come vengono conservati gli snapshot degli ordini?
 6. Quale problema evita `AUTOINCREMENT`?
 7. Perche il riordino dei colori usa una transazione?
+
+## Supporto Ai File 3MF
+
+### 1. Confronta STL E 3MF
+
+Carica prima un STL e poi un 3MF. Confronta la risposta di `/api/custom-models/upload`, in particolare `modelFormat` e `inspection`.
+
+### 2. Osserva Un Archivio 3MF
+
+Apri una copia di un 3MF come archivio ZIP e individua `_rels/.rels`, il modello `.model` e gli eventuali file sotto `Metadata`. Non modificare il file originale usato per la stampa.
+
+### 3. Verifica Il Primo Piatto
+
+Usa un progetto Bambu con due piatti. Confronta `plateCount`, `previewPlate` e `previewBuildItemIndexes`, quindi controlla che il viewer mostri soltanto il primo.
+
+### 4. Prova Il Volume Standard
+
+Crea due progetti, uno entro e uno oltre 256x256x256 mm. Entrambi devono essere accettati, ma il secondo deve restituire un avviso informativo.
+
+### 5. Prova Un G-code 3MF
+
+Tenta di caricare un file `.gcode.3mf`. Verifica il codice di errore e spiega perche il sito non deve eseguire contenuti di stampa gia affettati.
+
+### 6. Controlla La Persistenza
+
+Invia un ordine 3MF e confronta il file temporaneo con quello in `storage/orders`. Verifica che i byte siano identici e osserva `model_format` e `model_metadata_json`.
+
+### 7. Scarica Dal Pannello
+
+Apri la richiesta dalla Control Room e scarica il 3MF. Controlla `Content-Type`, `Content-Disposition` e comportamento dopo il logout.
+
+### 8. Verifica Un Carrello Precedente
+
+Inserisci in `localStorage` un elemento STL senza `modelFormat`. Ricarica la pagina e verifica che venga interpretato come STL senza perdere il carrello.
+
+## Autovalutazione 3MF
+
+1. Perche il 3MF viene ispezionato prima dell'anteprima?
+2. Quale relazione identifica il modello principale?
+3. Come viene individuato il primo piatto Bambu?
+4. Perche il controllo 256x256x256 mm e soltanto informativo?
+5. Quali dati vengono salvati oltre al file originale?
+6. Perche `.gcode.3mf` e escluso?
+7. Quali limiti proteggono server e browser?

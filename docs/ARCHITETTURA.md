@@ -2,7 +2,7 @@
 
 Questo documento rappresenta la struttura generale dell'applicazione. Deve essere aggiornato insieme al codice quando cambiano componenti, dipendenze, API, database, directory di storage o flussi principali.
 
-Ultimo aggiornamento: 16 luglio 2026, fase 9.
+Ultimo aggiornamento: 17 luglio 2026, supporto 3MF.
 
 ## Diagramma Di Flusso
 
@@ -20,7 +20,7 @@ flowchart LR
   subgraph Browser
     Pubblica[Interfaccia pubblica]
     Pannello[Pannello Control Room]
-    Pubblica --> CatalogoUI[Catalogo e viewer STL]
+    Pubblica --> CatalogoUI[Catalogo e viewer STL/3MF]
     Pubblica --> Carrello[Carrello locale]
     Pannello --> OrdiniUI[Gestione ordini]
     Pannello --> CatalogoAdmin[Gestione prodotti e colori]
@@ -30,7 +30,7 @@ flowchart LR
     API[API pubbliche]
     APIAdmin[API amministrative protette]
     Sessioni[Sessioni admin in memoria]
-    Validazione[Validazione dati e file]
+    Validazione[Validazione dati, STL e archivi 3MF]
     Asset[Servizio asset statici]
     APIAdmin <--> Sessioni
     API --> Validazione
@@ -41,8 +41,8 @@ flowchart LR
     DB[(SQLite)]
     Storage[(Storage locale)]
     DB --> Tabelle[Prodotti, colori, ordini e snapshot]
-    Storage --> Upload[Upload temporanei]
-    Storage --> FileOrdini[STL degli ordini]
+    Storage --> Upload[Upload STL/3MF temporanei]
+    Storage --> FileOrdini[STL/3MF degli ordini]
     Storage --> FileCatalogo[Immagini e STL del catalogo]
     Storage --> Email[Email simulate]
   end
@@ -89,6 +89,7 @@ flowchart TB
     OrderRoutes[order-routes.js]
     AdminRoutes[admin-routes.js]
     CatalogAssets[catalog-assets.js]
+    ModelFiles[model-files.js]
     Database[database.js]
     ServerJS --> AppJS
     AppJS --> CatalogRoutes
@@ -96,6 +97,8 @@ flowchart TB
     AppJS --> OrderRoutes
     AppJS --> AdminRoutes
     AppJS --> CatalogAssets
+    CustomRoutes --> ModelFiles
+    OrderRoutes --> ModelFiles
     CatalogRoutes --> Database
     OrderRoutes --> Database
     AdminRoutes --> Database
@@ -123,8 +126,9 @@ sequenceDiagram
   E->>D: Legge dati pubblici
   D-->>E: Prodotti e colori
   E-->>B: JSON validato
-  C->>B: Aggiunge STL o link facoltativo
-  B->>E: Carica e valida il modello
+  C->>B: Aggiunge STL, 3MF o link facoltativo
+  B->>E: Carica il modello
+  E->>E: Ispeziona ZIP, XML e primo piatto
   E->>S: Salva upload temporaneo
   C->>B: Invia nome, cognome e carrello
   B->>E: POST /api/orders
@@ -166,7 +170,7 @@ Pixel Print Lab/
 |   |-- index.html          Pagina pubblica
 |   |-- app.js              Catalogo e modelli personali
 |   |-- cart.js             Stato e regole del carrello
-|   |-- viewer.js           Anteprima STL con Three.js
+|   |-- viewer.js           Anteprima STL/3MF con Three.js
 |   |-- admin.html          Control Room
 |   |-- admin.js            Ordini, prodotti e colori
 |   `-- images/ e models/   Asset dimostrativi
@@ -176,12 +180,13 @@ Pixel Print Lab/
 |   |-- database.js         Migrazioni e seed SQLite
 |   |-- catalog-routes.js   API pubbliche del catalogo
 |   |-- custom-model-routes.js
+|   |-- model-files.js      Ispezione sicura STL/3MF e primo piatto
 |   |-- order-routes.js
 |   |-- admin-routes.js     Sessioni e API protette
 |   `-- catalog-assets.js   Upload e servizio asset catalogo
 |-- storage/                File runtime esclusi da Git
-|   |-- uploads/            STL temporanei
-|   |-- orders/             STL permanenti degli ordini
+|   |-- uploads/            STL/3MF temporanei
+|   |-- orders/             STL/3MF permanenti degli ordini
 |   |-- catalog/            Immagini e STL amministrativi
 |   `-- emails/             Email simulate
 |-- data/                   Database SQLite runtime
@@ -198,6 +203,7 @@ Pixel Print Lab/
 - Le credenziali sono lette da `.env`, che e escluso da Git.
 - I dati inviati dal browser vengono rivalidati dal server.
 - Gli upload usano nomi UUID, limiti di dimensione e verifica del contenuto.
+- I 3MF vengono ispezionati lato server prima dell'anteprima e confrontati con un volume standard 256x256x256 mm.
 - I file degli ordini sono accessibili soltanto tramite API protette.
 - Gli asset del catalogo sono pubblici, ma possono essere caricati soltanto dall'amministratore.
 - Gli ordini conservano snapshot indipendenti dalle modifiche al catalogo.

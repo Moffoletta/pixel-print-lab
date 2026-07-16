@@ -9,6 +9,7 @@ import {
   removeFiles,
   validateCatalogFiles,
 } from "./catalog-assets.js";
+import { modelContentType } from "./model-files.js";
 import {
   buildEmail,
   defaultEmailOutboxDirectory,
@@ -170,7 +171,16 @@ function validateColor(body) {
   };
 }
 
+function parseModelMetadata(value) {
+  try {
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+}
+
 function serializeItem(item) {
+  const modelMetadata = parseModelMetadata(item.model_metadata_json);
   return {
     id: item.id,
     position: item.position,
@@ -187,6 +197,8 @@ function serializeItem(item) {
     sourceName: item.source_name,
     externalUrl: item.external_url,
     hasModel: Boolean(item.model_filename),
+    modelFormat: item.model_format ?? (item.model_filename?.toLowerCase().endsWith(".3mf") ? "3mf" : item.model_filename ? "stl" : null),
+    modelMetadata,
   };
 }
 
@@ -259,10 +271,12 @@ export function registerAdminRoutes(
       order_id, position, item_type, product_id, product_code, product_name,
       unit_price_cents, color_id, color_name, color_hex, quantity,
       original_name, source_name, external_url, model_filename
+      , model_format, model_metadata_json
     ) VALUES (
       @orderId, @position, @itemType, @productId, @productCode, @productName,
       @unitPriceCents, @colorId, @colorName, @colorHex, @quantity,
       @originalName, @sourceName, @externalUrl, @modelFilename
+      , @modelFormat, @modelMetadataJson
     )
   `);
   const replaceOrder = database.transaction((order) => {
@@ -519,11 +533,12 @@ export function registerAdminRoutes(
     const itemId = Number.parseInt(request.params.itemId, 10);
     const item = findItem.get(itemId, orderId);
     if (!item?.model_filename) {
-      return sendError(response, new AdminError("MODEL_NOT_FOUND", "File STL non trovato.", 404));
+      return sendError(response, new AdminError("MODEL_NOT_FOUND", "File modello non trovato.", 404));
     }
     response.setHeader("Cache-Control", "private, no-store");
-    response.setHeader("Content-Type", "model/stl");
-    return response.sendFile(path.join(orderFileDirectory, item.model_filename));
+    response.setHeader("Content-Type", modelContentType(item.model_format ?? (item.model_filename.toLowerCase().endsWith(".3mf") ? "3mf" : "stl")));
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    return response.download(path.join(orderFileDirectory, item.model_filename), item.original_name ?? item.model_filename);
   });
 
   app.put("/api/admin/orders/:id", requireAdmin, async (request, response) => {
@@ -580,6 +595,8 @@ export function registerAdminRoutes(
             sourceName: null,
             externalUrl: null,
             modelFilename: null,
+            modelFormat: null,
+            modelMetadataJson: null,
           };
         }
 
@@ -603,6 +620,9 @@ export function registerAdminRoutes(
           sourceName: existing.source_name,
           externalUrl: existing.external_url,
           modelFilename: existing.model_filename,
+          modelFormat: existing.model_format ?? (existing.model_filename?.toLowerCase().endsWith(".3mf") ? "3mf" : "stl"),
+          modelMetadataJson: existing.model_metadata_json,
+          modelMetadata: parseModelMetadata(existing.model_metadata_json),
         };
       });
 

@@ -156,6 +156,10 @@ function createItemEditor(item) {
     if (item.itemType === "custom_file") {
       modelLink.hidden = false;
       modelLink.href = `/api/admin/orders/${currentOrder.id}/items/${item.id}/model`;
+      modelLink.textContent = `Scarica ${(item.modelFormat ?? "stl").toUpperCase()}`;
+      modelLink.download = item.originalName ?? "modello";
+      const compatibility = item.modelMetadata?.compatibility;
+      if (compatibility) modelLink.title = `Verifica piatto standard: ${compatibility.status}`;
     }
     if (item.itemType === "custom_link") {
       externalLink.hidden = false;

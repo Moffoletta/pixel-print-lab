@@ -13,6 +13,23 @@ function createCustomKey(id, colorId) {
   return `custom:${id}:${colorId}`;
 }
 
+function modelFormatFor(item) {
+  if (item.modelFormat === undefined && item.modelUrl === `/uploads/${item.id}.stl`) return "stl";
+  return ["stl", "3mf"].includes(item.modelFormat) ? item.modelFormat : null;
+}
+
+function isValidInspection(inspection) {
+  if (!inspection || typeof inspection !== "object") return false;
+  return (
+    ["generic", "bambu"].includes(inspection.projectType) &&
+    Number.isInteger(inspection.plateCount) && inspection.plateCount > 0 && inspection.plateCount <= 100 &&
+    Array.isArray(inspection.previewBuildItemIndexes) && inspection.previewBuildItemIndexes.length <= 10_000 &&
+    inspection.previewBuildItemIndexes.every((index) => Number.isInteger(index) && index >= 0) &&
+    inspection.boundsMm && Array.isArray(inspection.boundsMm.size) && inspection.boundsMm.size.length === 3 &&
+    inspection.boundsMm.size.every((value) => Number.isFinite(value) && value >= 0)
+  );
+}
+
 function validateSelection({ productId, colorId, quantity }) {
   if (!isPositiveInteger(productId) || !isPositiveInteger(colorId)) {
     throw new TypeError("Prodotto e colore devono avere identificativi numerici positivi.");
@@ -57,8 +74,11 @@ export function addCustomCartItem(cart, selection) {
   ) {
     throw new TypeError("I dati del modello personale non sono validi.");
   }
-  if (sourceType === "file" && selection.modelUrl !== `/uploads/${id}.stl`) {
-    throw new TypeError("Il percorso del file STL non e valido.");
+  if (sourceType === "file") {
+    const format = modelFormatFor(selection);
+    if (!format || selection.modelUrl !== `/uploads/${id}.${format}` || (format === "3mf" && !isValidInspection(selection.inspection))) {
+      throw new TypeError("Il percorso o i dati del file modello non sono validi.");
+    }
   }
   if (sourceType === "link" && !isAllowedExternalUrl(selection.externalUrl)) {
     throw new TypeError("Il link esterno non e valido.");
@@ -74,7 +94,8 @@ export function addCustomCartItem(cart, selection) {
     );
   }
 
-  return [...cart, { type: "custom", key, ...selection }];
+  const normalizedSelection = sourceType === "file" ? { ...selection, modelFormat: modelFormatFor(selection) } : selection;
+  return [...cart, { type: "custom", key, ...normalizedSelection }];
 }
 
 export function updateCartQuantity(cart, key, quantity) {
@@ -119,7 +140,9 @@ export function parseStoredCart(serializedCart) {
         return [];
       }
       if (item.type === "custom") {
-        return isValidStoredCustomItem(item) ? [item] : [];
+        return isValidStoredCustomItem(item)
+          ? [{ ...item, ...(item.sourceType === "file" ? { modelFormat: modelFormatFor(item) } : {}) }]
+          : [];
       }
       const { productId, colorId, quantity } = item;
       const valid =
@@ -180,7 +203,8 @@ function isValidStoredCustomItem(item) {
     return false;
   }
   if (item.sourceType === "file") {
-    return item.modelUrl === `/uploads/${item.id}.stl`;
+    const format = modelFormatFor(item);
+    return Boolean(format) && item.modelUrl === `/uploads/${item.id}.${format}` && (format !== "3mf" || isValidInspection(item.inspection));
   }
   return (
     item.sourceType === "link" &&

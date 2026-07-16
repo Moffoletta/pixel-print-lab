@@ -1,15 +1,24 @@
 import crypto from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { open, readdir, stat, unlink } from "node:fs/promises";
+import { readdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import multer from "multer";
+import {
+  detectModelFormat,
+  inspectModelFile,
+  isValidStlFile,
+  MAX_MODEL_FILE_SIZE,
+  ModelFileError,
+  modelContentType,
+} from "./model-files.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultUploadDirectory = path.join(currentDirectory, "..", "storage", "uploads");
-export const MAX_STL_FILE_SIZE = 50 * 1024 * 1024;
+export const MAX_STL_FILE_SIZE = MAX_MODEL_FILE_SIZE;
 export const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+export { isValidStlFile };
 
 const allowedSites = [
   { domain: "printables.com", name: "Printables" },
@@ -31,15 +40,15 @@ function sendError(response, error) {
     const fileTooLarge = error.code === "LIMIT_FILE_SIZE";
     return response.status(fileTooLarge ? 413 : 400).json({
       error: {
-        code: fileTooLarge ? "STL_TOO_LARGE" : "INVALID_UPLOAD",
+        code: fileTooLarge ? "MODEL_TOO_LARGE" : "INVALID_UPLOAD",
         message: fileTooLarge
-          ? "Il file STL non puo superare 50 MB."
+          ? "Il file modello non puo superare 50 MB."
           : "La richiesta di caricamento non e valida.",
       },
     });
   }
 
-  if (error instanceof CustomModelError) {
+  if (error instanceof CustomModelError || error instanceof ModelFileError) {
     return response.status(error.status).json({
       error: { code: error.code, message: error.message },
     });
@@ -47,7 +56,7 @@ function sendError(response, error) {
 
   console.error(error);
   return response.status(500).json({
-    error: { code: "UPLOAD_FAILED", message: "Impossibile salvare il modello STL." },
+    error: { code: "UPLOAD_FAILED", message: "Impossibile salvare il modello." },
   });
 }
 
@@ -81,42 +90,11 @@ export function validateExternalModelUrl(value) {
   return { externalUrl: parsedUrl.toString(), sourceName: site.name };
 }
 
-export async function isValidStlFile(filename) {
-  const fileStats = await stat(filename);
-  if (fileStats.size < 15 || fileStats.size > MAX_STL_FILE_SIZE) {
-    return false;
-  }
-
-  const file = await open(filename, "r");
-  try {
-    const sampleSize = Math.min(fileStats.size, 4096);
-    const sample = Buffer.alloc(sampleSize);
-    await file.read(sample, 0, sampleSize, 0);
-
-    if (fileStats.size >= 84) {
-      const triangleCount = sample.readUInt32LE(80);
-      const expectedBinarySize = 84 + triangleCount * 50;
-      if (triangleCount > 0 && expectedBinarySize === fileStats.size) {
-        return true;
-      }
-    }
-
-    const asciiSample = sample.toString("utf8").trimStart().toLowerCase();
-    return (
-      asciiSample.startsWith("solid") &&
-      asciiSample.includes("facet") &&
-      asciiSample.includes("vertex")
-    );
-  } finally {
-    await file.close();
-  }
-}
-
 export async function cleanupExpiredUploads(uploadDirectory, now = Date.now()) {
   const entries = await readdir(uploadDirectory, { withFileTypes: true });
   await Promise.all(
     entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".stl"))
+      .filter((entry) => entry.isFile() && /\.(?:stl|3mf)$/i.test(entry.name))
       .map(async (entry) => {
         const filename = path.join(uploadDirectory, entry.name);
         const fileStats = await stat(filename);
@@ -135,17 +113,24 @@ export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDi
 
   const storage = multer.diskStorage({
     destination: uploadDirectory,
-    filename: (_request, _file, callback) => callback(null, `${crypto.randomUUID()}.stl`),
+    filename: (_request, file, callback) => {
+      try {
+        callback(null, `${crypto.randomUUID()}.${detectModelFormat(file.originalname)}`);
+      } catch (error) {
+        callback(error);
+      }
+    },
   });
   const upload = multer({
     storage,
-    limits: { fileSize: MAX_STL_FILE_SIZE, files: 1, fields: 0, parts: 2 },
+    limits: { fileSize: MAX_MODEL_FILE_SIZE, files: 1, fields: 0, parts: 2 },
     fileFilter: (_request, file, callback) => {
-      if (path.extname(file.originalname).toLowerCase() !== ".stl") {
-        callback(new CustomModelError("INVALID_STL_EXTENSION", "Il file deve avere estensione .stl."));
-        return;
+      try {
+        detectModelFormat(file.originalname);
+        callback(null, true);
+      } catch (error) {
+        callback(error);
       }
-      callback(null, true);
     },
   });
 
@@ -154,9 +139,9 @@ export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDi
     express.static(uploadDirectory, {
       dotfiles: "deny",
       index: false,
-      setHeaders: (response) => {
+      setHeaders: (response, filename) => {
         response.setHeader("Cache-Control", "private, no-store");
-        response.setHeader("Content-Type", "model/stl");
+        response.setHeader("Content-Type", modelContentType(path.extname(filename).slice(1).toLowerCase()));
         response.setHeader("X-Content-Type-Options", "nosniff");
       },
     }),
@@ -170,24 +155,22 @@ export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDi
       if (!request.file) {
         return sendError(
           response,
-          new CustomModelError("STL_REQUIRED", "Seleziona un file STL da caricare."),
+            new CustomModelError("MODEL_REQUIRED", "Seleziona un file STL o 3MF da caricare."),
         );
       }
 
       try {
-        if (!(await isValidStlFile(request.file.path))) {
-          throw new CustomModelError(
-            "INVALID_STL_CONTENT",
-            "Il file non contiene una struttura STL valida.",
-          );
-        }
+        const modelFormat = detectModelFormat(request.file.originalname);
+        const inspection = await inspectModelFile(request.file.path, modelFormat);
         await cleanupExpiredUploads(uploadDirectory);
-        const id = path.basename(request.file.filename, ".stl");
+        const id = path.basename(request.file.filename, `.${modelFormat}`);
         return response.status(201).json({
           data: {
             id,
             name: path.basename(request.file.originalname.replaceAll("\\", "/")).slice(0, 120),
             modelUrl: `/uploads/${request.file.filename}`,
+            modelFormat,
+            inspection,
             expiresAt: new Date(Date.now() + UPLOAD_TTL_MS).toISOString(),
           },
         });
@@ -219,7 +202,14 @@ export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDi
     }
 
     try {
-      await unlink(path.join(uploadDirectory, `${request.params.id}.stl`));
+      const results = await Promise.allSettled(
+        ["stl", "3mf"].map((extension) => unlink(path.join(uploadDirectory, `${request.params.id}.${extension}`))),
+      );
+      if (results.every((result) => result.status === "rejected" && result.reason?.code === "ENOENT")) {
+        throw Object.assign(new Error("Not found"), { code: "ENOENT" });
+      }
+      const unexpected = results.find((result) => result.status === "rejected" && result.reason?.code !== "ENOENT");
+      if (unexpected) throw unexpected.reason;
       return response.status(204).end();
     } catch (error) {
       if (error.code === "ENOENT") {

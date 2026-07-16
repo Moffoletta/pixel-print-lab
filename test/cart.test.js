@@ -86,8 +86,54 @@ test("aggiunge un modello personale senza influire sul totale", () => {
   const cart = addCustomCartItem([], custom);
 
   assert.equal(cart[0].type, "custom");
+  assert.equal(cart[0].modelFormat, "stl");
   assert.equal(cart[0].key, "custom:123e4567-e89b-42d3-a456-426614174000:1");
   assert.equal(calculateCartTotal(cart, new Map()), 0);
+});
+
+test("conserva un progetto 3MF ispezionato e rifiuta formati incoerenti", () => {
+  const id = "123e4567-e89b-42d3-a456-426614174002";
+  const inspection = {
+    projectType: "bambu",
+    plateCount: 2,
+    previewBuildItemIndexes: [0],
+    boundsMm: { min: [0, 0, 0], max: [20, 30, 40], size: [20, 30, 40] },
+    compatibility: { status: "compatible" },
+  };
+  const selection = {
+    id,
+    sourceType: "file",
+    name: "progetto.3mf",
+    modelUrl: `/uploads/${id}.3mf`,
+    modelFormat: "3mf",
+    inspection,
+    colorId: 1,
+    quantity: 1,
+  };
+  const cart = addCustomCartItem([], selection);
+
+  assert.deepEqual(parseStoredCart(JSON.stringify(cart)), cart);
+  assert.throws(
+    () => addCustomCartItem([], { ...selection, modelUrl: `/uploads/${id}.stl` }),
+    TypeError,
+  );
+  assert.deepEqual(parseStoredCart(JSON.stringify([{ ...cart[0], inspection: null }])), []);
+});
+
+test("ripristina gli upload STL salvati prima del campo formato", () => {
+  const id = "123e4567-e89b-42d3-a456-426614174003";
+  const legacy = {
+    type: "custom",
+    key: `custom:${id}:1`,
+    id,
+    sourceType: "file",
+    name: "legacy.stl",
+    modelUrl: `/uploads/${id}.stl`,
+    colorId: 1,
+    quantity: 1,
+  };
+
+  assert.equal(parseStoredCart(JSON.stringify([legacy]))[0].modelFormat, "stl");
 });
 
 test("conserva link autorizzati e scarta link manipolati", () => {

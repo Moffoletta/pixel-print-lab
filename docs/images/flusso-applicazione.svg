@@ -56,7 +56,7 @@
     <rect x="365" y="215" width="250" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
     <rect x="365" y="215" width="250" height="35" fill="#68a0ff"/>
     <text x="390" y="290" class="node-title">Sito pubblico</text>
-    <text x="390" y="320" class="node-copy">Catalogo e viewer STL</text>
+    <text x="390" y="320" class="node-copy">Catalogo e viewer STL/3MF</text>
     <text x="390" y="344" class="node-copy">Carrello in localStorage</text>
     <text x="390" y="368" class="node-copy">Upload o link modello</text>
   </g>
@@ -74,7 +74,7 @@
     <rect x="1045" y="215" width="210" height="35" fill="#70d69a"/>
     <text x="1070" y="290" class="node-title">Validazione</text>
     <text x="1070" y="320" class="node-copy">Dati, prezzi, colori</text>
-    <text x="1070" y="344" class="node-copy">STL e link esterni</text>
+    <text x="1070" y="344" class="node-copy">ZIP/XML e primo piatto</text>
   </g>
 
   <g filter="url(#shadow)">
@@ -158,6 +158,6 @@
     <text x="322" y="5" class="small">Flusso amministrativo</text>
     <line x1="580" y1="0" x2="634" y2="0" class="data-flow"/>
     <text x="652" y="5" class="small">Persistenza e file</text>
-    <text x="1130" y="5" class="small">FASE 9 / 16-07-2026</text>
+    <text x="1100" y="5" class="small">SUPPORTO 3MF / 17-07-2026</text>
   </g>
 </svg>

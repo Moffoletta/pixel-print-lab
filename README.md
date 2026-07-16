@@ -1,6 +1,6 @@
 # Pixel Print Lab
 
-Applicazione personale per raccogliere richieste di stampa 3D da un catalogo o da file STL forniti dagli utenti.
+Applicazione personale per raccogliere richieste di stampa 3D da un catalogo o da file STL e 3MF forniti dagli utenti.
 
 ## Requisiti
 
@@ -35,7 +35,7 @@ npm.cmd test
 - `GET /api/products`: prodotti visibili.
 - `GET /api/products/:id`: dettaglio di un prodotto.
 - `GET /api/colors`: colori attivi.
-- `POST /api/custom-models/upload`: caricamento temporaneo di un file STL.
+- `POST /api/custom-models/upload`: caricamento temporaneo e ispezione di un file STL o 3MF.
 - `POST /api/custom-models/link`: validazione di un link esterno.
 - `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
 - `POST /api/orders`: creazione di una richiesta persistente.

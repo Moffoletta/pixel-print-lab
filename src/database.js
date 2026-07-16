@@ -143,6 +143,22 @@ const migrations = [
       CREATE INDEX colors_active_sort_idx ON colors (active, sort_order, id);
     `,
   },
+  {
+    version: 5,
+    name: "add_model_file_metadata",
+    sql: `
+      ALTER TABLE order_items
+      ADD COLUMN model_format TEXT
+      CHECK (model_format IS NULL OR model_format IN ('stl', '3mf'));
+
+      ALTER TABLE order_items
+      ADD COLUMN model_metadata_json TEXT;
+
+      UPDATE order_items
+      SET model_format = 'stl'
+      WHERE item_type = 'custom_file' AND model_format IS NULL;
+    `,
+  },
 ];
 
 const products = [
