@@ -22,6 +22,18 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## Backlog
 
+### Tracciamento pubblico delle richieste
+
+- [ ] Aggiungere agli ordini gli stati `in attesa`, `in lavorazione` e `completato`.
+- [ ] Permettere all'amministratore di cambiare manualmente lo stato dal pannello.
+- [ ] Aggiungere alla pagina principale una colonna pubblica con codice richiesta e stato.
+- [ ] Ordinare cronologicamente le richieste senza mostrare nome, cognome o dettagli dei modelli.
+- [ ] Definire comportamento responsive della colonna su schermi stretti.
+- [ ] Definire ordine cronologico, permanenza degli ordini completati e formato del codice pubblico.
+- [ ] Verificare privacy, accessibilita e aggiornamento dell'elenco.
+
+### Altre funzionalita
+
 - [ ] Statistiche anonime senza cookie.
 - [ ] Animazioni pixel art legate alla stampa 3D.
 - [ ] Preparazione alla pubblicazione.
