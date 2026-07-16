@@ -22,6 +22,20 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## Backlog
 
+### Supporto 3MF e profili stampante
+
+- [ ] Accettare file 3MF generici e progetti esportati da Bambu Studio, mantenendo il supporto STL esistente.
+- [ ] Escludere inizialmente gli archivi `.gcode.3mf` e conservare i metadati originali del progetto.
+- [ ] Ispezionare gli archivi 3MF in sicurezza, limitando dimensioni, contenuti e percorsi interni.
+- [ ] Estrarre geometrie, unita di misura, piatti, trasformazioni e profilo stampante senza eseguire contenuti incorporati.
+- [ ] Mostrare nell'anteprima soltanto il primo piatto tramite `3MFLoader`, con messaggi chiari per file non visualizzabili.
+- [ ] Validare il profilo A1 Mini rispetto al volume di stampa di 180x180x180 mm.
+- [ ] Validare il profilo X2D rispetto all'ugello usato: 256x256x260 mm per il principale e 235,5x256x256 mm per ausiliario o doppio ugello.
+- [ ] Segnalare incompatibilita di volume o profilo senza scartare automaticamente i 3MF generici privi di dati stampante.
+- [ ] Conservare il 3MF originale nell'ordine e renderlo scaricabile dal pannello amministrativo.
+- [ ] Verificare upload, anteprima, ordini, sicurezza e responsive con fixture 3MF generiche e Bambu Studio.
+- [ ] Documentare limiti e compatibilita usando le specifiche ufficiali Bambu Lab.
+
 ### Tracciamento pubblico delle richieste
 
 - [ ] Aggiungere agli ordini gli stati `in attesa`, `in lavorazione` e `completato`.
