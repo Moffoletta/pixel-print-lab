@@ -189,10 +189,14 @@ loginForm.addEventListener("submit", async (event) => {
   loginFeedback.textContent = "";
   loginFeedback.classList.remove("admin-feedback--error");
   try {
+    const formData = new FormData(loginForm);
     await api("/api/admin/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ password: new FormData(loginForm).get("password") }),
+      body: JSON.stringify({
+        username: formData.get("username"),
+        password: formData.get("password"),
+      }),
     });
     await showDashboard();
   } catch (error) {

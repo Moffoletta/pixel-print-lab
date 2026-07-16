@@ -52,12 +52,12 @@ function parseCookies(request) {
   );
 }
 
-function passwordMatches(candidate, configuredPassword) {
-  if (typeof candidate !== "string" || typeof configuredPassword !== "string") {
+function credentialMatches(candidate, configuredValue) {
+  if (typeof candidate !== "string" || typeof configuredValue !== "string") {
     return false;
   }
   const candidateHash = crypto.createHash("sha256").update(candidate).digest();
-  const configuredHash = crypto.createHash("sha256").update(configuredPassword).digest();
+  const configuredHash = crypto.createHash("sha256").update(configuredValue).digest();
   return crypto.timingSafeEqual(candidateHash, configuredHash);
 }
 
@@ -85,6 +85,7 @@ export function registerAdminRoutes(
   app,
   {
     database,
+    adminUsername,
     adminPassword,
     orderFileDirectory = defaultOrderFileDirectory,
     emailOutboxDirectory = defaultEmailOutboxDirectory,
@@ -149,11 +150,14 @@ export function registerAdminRoutes(
   }
 
   app.post("/api/admin/login", (request, response) => {
-    if (typeof adminPassword !== "string" || adminPassword.length === 0) {
+    if (
+      typeof adminUsername !== "string" || adminUsername.length === 0 ||
+      typeof adminPassword !== "string" || adminPassword.length === 0
+    ) {
       return response.status(503).json({
         error: {
           code: "ADMIN_NOT_CONFIGURED",
-          message: "Imposta ADMIN_PASSWORD prima di usare il pannello amministrativo.",
+          message: "Imposta ADMIN_USERNAME e ADMIN_PASSWORD prima di usare il pannello amministrativo.",
         },
       });
     }
@@ -166,11 +170,13 @@ export function registerAdminRoutes(
         error: { code: "LOGIN_RATE_LIMITED", message: "Troppi tentativi. Riprova piu tardi." },
       });
     }
-    if (!passwordMatches(request.body?.password, adminPassword)) {
+    const usernameIsValid = credentialMatches(request.body?.username, adminUsername);
+    const passwordIsValid = credentialMatches(request.body?.password, adminPassword);
+    if (!usernameIsValid || !passwordIsValid) {
       const current = attempt && attempt.resetAt > now ? attempt : { count: 0, resetAt: now + LOGIN_WINDOW_MS };
       loginAttempts.set(key, { ...current, count: current.count + 1 });
       return response.status(401).json({
-        error: { code: "INVALID_ADMIN_PASSWORD", message: "Password non corretta." },
+        error: { code: "INVALID_ADMIN_CREDENTIALS", message: "Nome utente o password non corretti." },
       });
     }
 

@@ -29,6 +29,7 @@ before(async () => {
     uploadDirectory,
     orderFileDirectory,
     emailOutboxDirectory,
+    adminUsername: "test-admin",
     adminPassword: "test-admin-password",
   }).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
@@ -422,14 +423,22 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   const wrongLogin = await fetch(`${baseUrl}/api/admin/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ password: "errata" }),
+    body: JSON.stringify({ username: "test-admin", password: "errata" }),
   });
   assert.equal(wrongLogin.status, 401);
+
+  const wrongUsername = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "altro-admin", password: "test-admin-password" }),
+  });
+  assert.equal(wrongUsername.status, 401);
+  assert.equal((await wrongUsername.json()).error.code, "INVALID_ADMIN_CREDENTIALS");
 
   const login = await fetch(`${baseUrl}/api/admin/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ password: "test-admin-password" }),
+    body: JSON.stringify({ username: "test-admin", password: "test-admin-password" }),
   });
   const setCookie = login.headers.get("set-cookie");
   const cookie = setCookie.split(";", 1)[0];

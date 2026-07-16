@@ -945,21 +945,22 @@ HTML, CSS e JavaScript della pagina sono risorse statiche e possono essere scari
 
 Nascondere l'URL non sarebbe una misura di sicurezza. La protezione effettiva si trova sul server.
 
-### Configurazione Della Password
+### Configurazione Delle Credenziali
 
-La password viene letta da `ADMIN_PASSWORD`. Per lo sviluppo locale si crea un file `.env` non versionato:
+Il nome utente e la password vengono letti da `ADMIN_USERNAME` e `ADMIN_PASSWORD`. Per lo sviluppo locale si crea un file `.env` non versionato:
 
 ```text
+ADMIN_USERNAME=admin
 ADMIN_PASSWORD=una-password-personale-lunga
 ```
 
-Se la variabile manca, il login restituisce HTTP `503` con un messaggio di configurazione. Non esistono password predefinite o credenziali scritte nel codice.
+Se una variabile manca, il login restituisce HTTP `503` con un messaggio di configurazione. Non esistono credenziali predefinite o scritte nel codice.
 
-`.env` e escluso da Git. `.env.example` documenta soltanto il nome della variabile e contiene un segnaposto.
+`.env` e escluso da Git. `.env.example` documenta soltanto i nomi delle variabili e contiene segnaposto.
 
-### Verifica Della Password
+### Verifica Delle Credenziali
 
-Il server calcola SHA-256 sia della password ricevuta sia di quella configurata, ottenendo buffer della stessa lunghezza. Il confronto usa `crypto.timingSafeEqual`.
+Il server calcola SHA-256 per i valori ricevuti e quelli configurati, ottenendo buffer della stessa lunghezza. I confronti usano `crypto.timingSafeEqual` e un errore generico non rivela quale credenziale sia errata.
 
 Questo non trasforma la variabile d'ambiente in un archivio password: la password e gia fornita come segreto al processo. Il confronto a tempo costante riduce informazioni ricavabili dalla durata della verifica.
 
@@ -1077,7 +1078,7 @@ La pagina gestisce:
 ### Limiti Attuali
 
 - Le sessioni non sopravvivono al riavvio.
-- Esiste un solo amministratore e una sola password.
+- Esiste un solo amministratore configurato tramite variabili d'ambiente.
 - Non esiste recupero password.
 - Gli ordini eliminati non sono recuperabili senza backup.
 - Prodotti e colori verranno gestiti nella fase successiva.
@@ -1088,7 +1089,7 @@ La pagina gestisce:
 La fase verifica:
 
 - rifiuto delle API senza sessione;
-- password errata e login corretto;
+- nome utente o password errati e login corretto;
 - attributi `HttpOnly` e `SameSite=Strict`;
 - controllo della sessione;
 - elenco e dettaglio;

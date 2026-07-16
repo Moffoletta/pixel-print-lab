@@ -58,7 +58,7 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ### Fase 8 - Accesso amministrativo e ordini
 
-- [x] Configurata autenticazione con password e sessione in memoria.
+- [x] Configurata autenticazione con nome utente, password e sessione in memoria.
 - [x] Aggiunti cookie HttpOnly, SameSite e scadenza.
 - [x] Limitati i tentativi di login falliti.
 - [x] Create API protette per elenco, dettaglio e download STL.

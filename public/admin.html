@@ -14,8 +14,10 @@
         <div class="admin-login__mark" aria-hidden="true"><span></span><span></span><span></span></div>
         <p class="section-number">Area riservata</p>
         <h1 id="login-title">Pixel Print<br>Control Room</h1>
-        <p>Inserisci la password amministrativa configurata sul server.</p>
+        <p>Inserisci le credenziali amministrative configurate sul server.</p>
         <form id="login-form">
+          <label for="admin-username">Nome utente</label>
+          <input id="admin-username" name="username" type="text" autocomplete="username" required autofocus>
           <label for="admin-password">Password</label>
           <input id="admin-password" name="password" type="password" autocomplete="current-password" required>
           <p class="admin-feedback" id="login-feedback" role="status"></p>

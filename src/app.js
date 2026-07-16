@@ -15,6 +15,7 @@ export function createApp({
   uploadDirectory,
   orderFileDirectory,
   emailOutboxDirectory,
+  adminUsername,
   adminPassword,
 } = {}) {
   if (!database) {
@@ -43,6 +44,7 @@ export function createApp({
   });
   registerAdminRoutes(app, {
     database,
+    adminUsername,
     adminPassword,
     orderFileDirectory,
     emailOutboxDirectory,

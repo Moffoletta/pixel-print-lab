@@ -437,7 +437,7 @@ Usa `git status` dopo aver creato richieste. Database, email e STL permanenti no
 
 ### 1. Configura La Password
 
-Crea `.env` con una password personale, riavvia il server e visita `/admin.html`. Verifica con `git status` che il file non venga proposto per il commit.
+Crea `.env` con un nome utente e una password personali, riavvia il server e visita `/admin.html`. Verifica con `git status` che il file non venga proposto per il commit.
 
 ### 2. Ispeziona Il Cookie
 
@@ -475,7 +475,7 @@ Elimina una riga STL da un ordine, salva e controlla `storage/orders`. Verifica 
 
 ### 9. Prova Il Limite Login
 
-In un ambiente di prova inserisci cinque volte una password errata. Osserva il passaggio da `401` a `429`. Riavvia il server per azzerare il contatore locale.
+In un ambiente di prova inserisci cinque volte un nome utente o una password errati. Osserva il passaggio da `401` a `429`. Riavvia il server per azzerare il contatore locale.
 
 ### 10. Verifica La Cancellazione
 

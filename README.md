@@ -18,7 +18,7 @@ npm.cmd run dev
 
 Aprire `http://localhost:3000`. Per verificare il server aprire `http://localhost:3000/api/health`.
 
-Il pannello amministrativo e disponibile su `http://localhost:3000/admin.html` dopo aver impostato `ADMIN_PASSWORD` nel file locale `.env`.
+Il pannello amministrativo e disponibile su `http://localhost:3000/admin.html` dopo aver impostato `ADMIN_USERNAME` e `ADMIN_PASSWORD` nel file locale `.env`.
 
 `db:setup` applica le migrazioni SQLite e inserisce i prodotti e i colori dimostrativi. Il comando puo essere ripetuto senza creare duplicati.
 
