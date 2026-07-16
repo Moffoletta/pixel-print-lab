@@ -21,6 +21,17 @@ const cartItemTemplate = document.querySelector("#cart-item-template");
 const cartEmpty = document.querySelector("#cart-empty");
 const cartSummaryCount = document.querySelector("#cart-summary-count");
 const cartTotal = document.querySelector("#cart-total");
+const checkoutOpenButton = document.querySelector("#checkout-open");
+const checkoutDialog = document.querySelector("#checkout-dialog");
+const checkoutFormView = document.querySelector("#checkout-form-view");
+const checkoutCount = document.querySelector("#checkout-count");
+const checkoutCustomCount = document.querySelector("#checkout-custom-count");
+const checkoutTotal = document.querySelector("#checkout-total");
+const checkoutForm = document.querySelector("#checkout-form");
+const checkoutFeedback = document.querySelector("#checkout-feedback");
+const checkoutSubmitButton = document.querySelector("#checkout-submit");
+const orderConfirmation = document.querySelector("#order-confirmation");
+const confirmationCode = document.querySelector("#confirmation-code");
 const customForm = document.querySelector("#custom-model-form");
 const customSourceInputs = document.querySelectorAll('input[name="custom-source"]');
 const customFilePanel = document.querySelector("#custom-file-panel");
@@ -384,6 +395,11 @@ customForm.addEventListener("submit", async (event) => {
 
 function renderCart() {
   const count = getCartItemCount(cart);
+  const customCount = cart.reduce(
+    (total, item) => (item.type === "custom" ? total + item.quantity : total),
+    0,
+  );
+  const total = calculateCartTotal(cart, productsById);
   cartCount.textContent = String(count).padStart(2, "0");
   cartOpenButton.setAttribute(
     "aria-label",
@@ -392,8 +408,86 @@ function renderCart() {
   cartItems.replaceChildren(...cart.map(createCartItem));
   cartEmpty.hidden = cart.length > 0;
   cartSummaryCount.textContent = count;
-  cartTotal.textContent = euroFormatter.format(calculateCartTotal(cart, productsById) / 100);
+  cartTotal.textContent = euroFormatter.format(total / 100);
+  checkoutCount.textContent = count;
+  checkoutCustomCount.textContent = customCount;
+  checkoutTotal.textContent = euroFormatter.format(total / 100);
+  checkoutOpenButton.disabled = cart.length === 0;
 }
+
+function serializeOrderItem(item) {
+  if (item.type === "catalog") {
+    return {
+      type: "catalog",
+      productId: item.productId,
+      colorId: item.colorId,
+      quantity: item.quantity,
+    };
+  }
+  if (item.sourceType === "file") {
+    return {
+      type: "custom",
+      sourceType: "file",
+      id: item.id,
+      name: item.name,
+      colorId: item.colorId,
+      quantity: item.quantity,
+    };
+  }
+  return {
+    type: "custom",
+    sourceType: "link",
+    externalUrl: item.externalUrl,
+    colorId: item.colorId,
+    quantity: item.quantity,
+  };
+}
+
+checkoutOpenButton.addEventListener("click", () => {
+  checkoutForm.reset();
+  checkoutFeedback.textContent = "";
+  checkoutFeedback.classList.remove("checkout-feedback--error");
+  checkoutFormView.hidden = false;
+  orderConfirmation.hidden = true;
+  confirmationCode.textContent = "";
+  cartDialog.close();
+  checkoutDialog.showModal();
+});
+
+checkoutForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(checkoutForm);
+  checkoutSubmitButton.disabled = true;
+  checkoutSubmitButton.textContent = "Invio in corso...";
+  checkoutFeedback.textContent = "";
+  checkoutFeedback.classList.remove("checkout-feedback--error");
+
+  try {
+    const order = await parseApiResponse(
+      await fetch("/api/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.get("firstName"),
+          lastName: formData.get("lastName"),
+          items: cart.map(serializeOrderItem),
+        }),
+      }),
+    );
+    cart = [];
+    saveCart();
+    renderCart();
+    checkoutFormView.hidden = true;
+    orderConfirmation.hidden = false;
+    confirmationCode.textContent = order.code;
+  } catch (error) {
+    checkoutFeedback.textContent = error.message;
+    checkoutFeedback.classList.add("checkout-feedback--error");
+  } finally {
+    checkoutSubmitButton.disabled = false;
+    checkoutSubmitButton.textContent = "Conferma e invia";
+  }
+});
 
 async function loadCatalog() {
   try {

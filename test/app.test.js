@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -15,12 +15,21 @@ let server;
 let baseUrl;
 let database;
 let uploadDirectory;
+let orderFileDirectory;
+let emailOutboxDirectory;
 
 before(async () => {
   uploadDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-test-"));
+  orderFileDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-orders-"));
+  emailOutboxDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-emails-"));
   database = openDatabase(":memory:");
   seedDatabase(database);
-  server = createApp({ database, uploadDirectory }).listen(0);
+  server = createApp({
+    database,
+    uploadDirectory,
+    orderFileDirectory,
+    emailOutboxDirectory,
+  }).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const address = server.address();
   baseUrl = `http://127.0.0.1:${address.port}`;
@@ -31,7 +40,11 @@ after(async () => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
   database.close();
-  await rm(uploadDirectory, { recursive: true, force: true });
+  await Promise.all(
+    [uploadDirectory, orderFileDirectory, emailOutboxDirectory].map((directory) =>
+      rm(directory, { recursive: true, force: true }),
+    ),
+  );
 });
 
 test("espone lo stato di salute del server", async () => {
@@ -58,6 +71,9 @@ test("serve la pagina pubblica con un catalogo accessibile", async () => {
   assert.match(page, /id="custom-model-form"/);
   assert.match(page, /id="custom-file"/);
   assert.match(page, /id="custom-link"/);
+  assert.match(page, /id="checkout-dialog"/);
+  assert.match(page, /id="checkout-form"/);
+  assert.match(page, /id="confirmation-code"/);
   assert.match(page, /type="importmap"/);
   assert.match(page, /<script type="module" src="\/app.js"><\/script>/);
 });
@@ -127,7 +143,7 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 2);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 3);
 });
 
 test("carica, serve ed elimina un file STL valido", async () => {
@@ -256,4 +272,141 @@ test("elimina gli upload temporanei scaduti", async () => {
   await cleanupExpiredUploads(uploadDirectory);
 
   await assert.rejects(stat(expiredFile), { code: "ENOENT" });
+});
+
+test("crea una richiesta mista con snapshot, file permanente ed email simulata", async () => {
+  const stl = `solid order
+facet normal 0 0 1
+  outer loop
+    vertex 0 0 0
+    vertex 1 0 0
+    vertex 0 1 0
+  endloop
+endfacet
+endsolid order`;
+  const uploadForm = new FormData();
+  uploadForm.append("model", new Blob([stl]), "ordine-personale.stl");
+  const uploadResponse = await fetch(`${baseUrl}/api/custom-models/upload`, {
+    method: "POST",
+    body: uploadForm,
+  });
+  const upload = (await uploadResponse.json()).data;
+
+  const response = await fetch(`${baseUrl}/api/orders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "  Mauro ",
+      lastName: " Rossi  ",
+      items: [
+        { type: "catalog", productId: 1, colorId: 1, quantity: 2, priceCents: 1 },
+        {
+          type: "custom",
+          sourceType: "file",
+          id: upload.id,
+          name: upload.name,
+          colorId: 2,
+          quantity: 1,
+        },
+        {
+          type: "custom",
+          sourceType: "link",
+          externalUrl: "https://www.makerworld.com/en/models/123-test",
+          colorId: 3,
+          quantity: 4,
+        },
+      ],
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(Object.keys(body.data), ["code"]);
+  assert.match(body.data.code, /^PPL-\d{8}-[0-9A-F]{6}$/);
+
+  const order = database.prepare("SELECT * FROM orders WHERE code = ?").get(body.data.code);
+  const items = database
+    .prepare("SELECT * FROM order_items WHERE order_id = ? ORDER BY position")
+    .all(order.id);
+  assert.equal(order.first_name, "Mauro");
+  assert.equal(order.last_name, "Rossi");
+  assert.equal(order.catalog_total_cents, 2400);
+  assert.equal(items.length, 3);
+  assert.equal(items[0].product_name, "Vaso Orbitale");
+  assert.equal(items[0].unit_price_cents, 1200);
+  assert.equal(items[0].color_name, "Nero");
+  assert.equal(items[1].item_type, "custom_file");
+  assert.equal(items[1].original_name, "ordine-personale.stl");
+  assert.equal(items[2].item_type, "custom_link");
+  assert.equal(items[2].source_name, "MakerWorld");
+
+  await stat(path.join(orderFileDirectory, items[1].model_filename));
+  assert.equal((await fetch(`${baseUrl}${upload.modelUrl}`)).status, 404);
+  const email = await readFile(path.join(emailOutboxDirectory, `${body.data.code}.txt`), "utf8");
+  assert.match(email, new RegExp(`Codice: ${body.data.code}`));
+  assert.match(email, /Nome: Mauro/);
+  assert.match(email, /Vaso Orbitale/);
+  assert.match(email, /ordine-personale\.stl/);
+  assert.match(email, /https:\/\/www\.makerworld\.com\/en\/models\/123-test/);
+  assert.match(email, /Totale catalogo: 24,00 EUR/);
+});
+
+test("rifiuta richieste manipolate senza creare record", async () => {
+  const initialCount = database.prepare("SELECT COUNT(*) AS count FROM orders").get().count;
+  const requests = [
+    {
+      firstName: "",
+      lastName: "Rossi",
+      items: [{ type: "catalog", productId: 1, colorId: 1, quantity: 1 }],
+      expectedCode: "INVALID_CUSTOMER",
+    },
+    {
+      firstName: "Mauro",
+      lastName: "Rossi",
+      items: [{ type: "catalog", productId: 1, colorId: 1, quantity: 100 }],
+      expectedCode: "INVALID_QUANTITY",
+    },
+    {
+      firstName: "Mauro",
+      lastName: "Rossi",
+      items: [
+        {
+          type: "custom",
+          sourceType: "file",
+          id: "123e4567-e89b-42d3-a456-426614174000",
+          name: "mancante.stl",
+          colorId: 1,
+          quantity: 1,
+        },
+      ],
+      expectedCode: "UPLOAD_NOT_FOUND",
+    },
+    {
+      firstName: "Mauro",
+      lastName: "Rossi",
+      items: [
+        {
+          type: "custom",
+          sourceType: "link",
+          externalUrl: "https://printables.com.example.org/model/1",
+          colorId: 1,
+          quantity: 1,
+        },
+      ],
+      expectedCode: "INVALID_LINK",
+    },
+  ];
+
+  for (const request of requests) {
+    const response = await fetch(`${baseUrl}/api/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    const body = await response.json();
+    assert.ok(response.status >= 400);
+    assert.equal(body.error.code, request.expectedCode);
+  }
+
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, initialCount);
 });

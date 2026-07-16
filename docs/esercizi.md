@@ -372,3 +372,63 @@ Passa tra File STL e Link esterno, seleziona colore, modifica quantita e invia i
 5. Quando viene cancellato un upload temporaneo?
 6. Perche un modello personale non modifica il totale?
 7. Quale compatibilita viene mantenuta per il vecchio carrello?
+
+## Fase 7 - Invio Delle Richieste
+
+### 1. Confronta Carrello E Snapshot
+
+Invia una richiesta con un prodotto del catalogo. Modifica poi il prezzo nella tabella `products` e confrontalo con `unit_price_cents` in `order_items`.
+
+Spiega perche il valore storico non cambia.
+
+### 2. Prova Un Prezzo Manipolato
+
+Negli strumenti Network copia il payload di `/api/orders`, aggiungi un prezzo inventato e ripeti la richiesta. Controlla nel database quale prezzo viene salvato.
+
+### 3. Segui Un File
+
+Prima dell'invio individua lo STL in `storage/uploads`. Dopo la conferma verifica:
+
+- assenza nella cartella temporanea;
+- presenza in `storage/orders`;
+- nome salvato in `order_items.model_filename`.
+
+### 4. Leggi L'Email Simulata
+
+Apri il file in `storage/emails` corrispondente al codice ricevuto. Confronta ogni riga con database e riepilogo mostrato nel browser.
+
+### 5. Nascondi Un Prodotto
+
+Aggiungi un prodotto al carrello, imposta temporaneamente `visible = 0` nel database e prova a inviare. Osserva l'errore, poi ripristina il prodotto.
+
+Obiettivo: vedere perche la validazione deve avvenire nel momento dell'operazione definitiva.
+
+### 6. Disattiva Un Colore
+
+Ripeti l'esperimento con `active = 0` nella tabella `colors`. Verifica che la richiesta non venga creata e che il carrello non venga svuotato.
+
+### 7. Analizza La Transazione
+
+Leggi `saveOrder` in `src/order-routes.js`. Individua inserimento della testata, inserimento delle righe e punto in cui Better SQLite racchiude le operazioni nella stessa transazione.
+
+### 8. Esamina Il Codice
+
+Genera piu richieste e confronta data e suffisso. Verifica nel database che la colonna `code` abbia un vincolo univoco.
+
+### 9. Controlla Il Payload
+
+Invia una richiesta mista e osserva il JSON. Elenca quali valori vengono inviati dal browser e quali vengono invece ricavati dal server.
+
+### 10. Verifica La Privacy Locale
+
+Usa `git status` dopo aver creato richieste. Database, email e STL permanenti non devono apparire tra i file da versionare.
+
+## Autovalutazione Della Fase 7
+
+1. Perche l'ordine salva snapshot invece di leggere sempre il catalogo?
+2. Quali valori del payload non vengono considerati affidabili?
+3. Perche il file temporaneo viene eliminato dopo la transazione?
+4. Cosa succede alle copie se il database rifiuta l'ordine?
+5. Quali dati contiene il codice richiesta?
+6. Dove vengono conservati nome e cognome?
+7. Perche un errore di invio non deve svuotare il carrello?

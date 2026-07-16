@@ -155,7 +155,7 @@
 
     <footer class="site-footer">
       <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
-      <p>Progetto locale <span aria-hidden="true">[fase 06]</span></p>
+      <p>Progetto locale <span aria-hidden="true">[fase 07]</span></p>
     </footer>
 
     <dialog class="cart-dialog" id="cart-dialog" aria-labelledby="cart-title">
@@ -178,10 +178,13 @@
             <div><dt>Pezzi</dt><dd id="cart-summary-count">0</dd></div>
             <div><dt>Totale catalogo</dt><dd id="cart-total">&euro; 0,00</dd></div>
           </dl>
-          <p>L'invio della richiesta verra aggiunto in una fase successiva.</p>
-          <form method="dialog">
-            <button class="pixel-button" type="submit">Continua a scegliere</button>
-          </form>
+          <p>I modelli personali non sono inclusi nel totale e verranno valutati separatamente.</p>
+          <div class="cart-summary__actions">
+            <form method="dialog">
+              <button class="pixel-button" type="submit">Continua a scegliere</button>
+            </form>
+            <button class="checkout-button" id="checkout-open" type="button" disabled>Invia richiesta</button>
+          </div>
         </footer>
       </div>
     </dialog>
@@ -228,6 +231,53 @@
           <p><strong>Trascina</strong> per ruotare <span aria-hidden="true">/</span> <strong>Rotella o gesto</strong> per zoomare</p>
           <button class="reset-view" id="viewer-reset" type="button" disabled>Ripristina visuale</button>
         </footer>
+      </div>
+    </dialog>
+
+    <dialog class="checkout-dialog" id="checkout-dialog" aria-labelledby="checkout-title">
+      <div class="checkout-panel">
+        <header class="checkout-panel__header">
+          <div>
+            <p class="section-number">Ultimo controllo</p>
+            <h2 id="checkout-title">Invia la richiesta</h2>
+          </div>
+          <form method="dialog">
+            <button class="icon-button" type="submit" aria-label="Chiudi il riepilogo finale">X</button>
+          </form>
+        </header>
+
+        <div id="checkout-form-view">
+          <dl class="checkout-recap">
+            <div><dt>Pezzi totali</dt><dd id="checkout-count">0</dd></div>
+            <div><dt>Pezzi da valutare</dt><dd id="checkout-custom-count">0</dd></div>
+            <div><dt>Totale catalogo</dt><dd id="checkout-total">&euro; 0,00</dd></div>
+          </dl>
+
+          <form class="checkout-form" id="checkout-form">
+            <label for="first-name">
+              <span>Nome</span>
+              <input id="first-name" name="firstName" type="text" maxlength="60" autocomplete="given-name" required>
+            </label>
+            <label for="last-name">
+              <span>Cognome</span>
+              <input id="last-name" name="lastName" type="text" maxlength="60" autocomplete="family-name" required>
+            </label>
+            <p>Nome e cognome sono gli unici dati richiesti. Accordi e consegna avverranno privatamente.</p>
+            <p class="checkout-feedback" id="checkout-feedback" role="status"></p>
+            <button class="checkout-submit" id="checkout-submit" type="submit">Conferma e invia</button>
+          </form>
+        </div>
+
+        <div class="order-confirmation" id="order-confirmation" hidden>
+          <div class="confirmation-printer" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="section-number">Richiesta inviata</p>
+          <h2>Ordine confermato</h2>
+          <p>Conserva questo codice:</p>
+          <strong id="confirmation-code"></strong>
+          <form method="dialog">
+            <button class="pixel-button" type="submit">Chiudi</button>
+          </form>
+        </div>
       </div>
     </dialog>
 

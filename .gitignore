@@ -4,8 +4,12 @@ data/*.db
 data/*.db-*
 storage/catalog/*
 storage/uploads/*
+storage/orders/*
+storage/emails/*
 !storage/catalog/.gitkeep
 !storage/uploads/.gitkeep
+!storage/orders/.gitkeep
+!storage/emails/.gitkeep
 npm-debug.log*
 .DS_Store
 Thumbs.db

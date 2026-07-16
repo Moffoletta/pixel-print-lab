@@ -750,3 +750,183 @@ I test automatici e il collaudo browser coprono:
 ## 20. Esito Della Fase 6
 
 La pagina raccoglie ora prodotti del catalogo, STL personali e link esterni nello stesso carrello. I modelli personali non hanno prezzo e i file rimangono temporanei; la fase successiva trasformera il riepilogo in una richiesta persistente identificata da un codice.
+
+## 21. Fase 7 - Invio Delle Richieste
+
+### Dal Carrello Alla Richiesta
+
+Il carrello rimane uno stato locale modificabile. Una richiesta, invece, e un record persistente che deve continuare a rappresentare cio che e stato inviato anche dopo modifiche a prodotti, prezzi o colori.
+
+Il flusso finale e:
+
+1. apertura del carrello;
+2. controllo di pezzi, richieste da valutare e totale catalogo;
+3. inserimento di nome e cognome;
+4. nuova validazione sul server;
+5. salvataggio nel database;
+6. spostamento logico degli STL nell'area permanente;
+7. creazione dell'email simulata;
+8. risposta con il solo codice di conferma;
+9. svuotamento del carrello locale.
+
+### Tabelle Degli Ordini
+
+La migrazione 3 crea `orders` e `order_items`.
+
+`orders` contiene:
+
+- codice univoco;
+- nome e cognome;
+- totale dei soli prodotti di catalogo;
+- data di creazione.
+
+Non esiste uno stato dell'ordine, coerentemente con i requisiti attuali. La richiesta rimane presente finche non verra eliminata manualmente dal futuro pannello amministrativo.
+
+`order_items` contiene una riga per ogni configurazione e distingue:
+
+- `catalog`;
+- `custom_file`;
+- `custom_link`.
+
+La relazione con `orders` usa una foreign key con cancellazione a cascata. Ogni riga possiede inoltre una posizione stabile nel riepilogo.
+
+### Snapshot Storici
+
+Gli elementi non dipendono dai dati futuri del catalogo. Al momento dell'invio vengono copiati:
+
+- codice e nome del prodotto;
+- prezzo unitario in centesimi;
+- nome e valore esadecimale del colore;
+- quantita;
+- nome del file oppure sito e URL esterno.
+
+Gli ID correnti vengono conservati come riferimento, ma non sono foreign key verso prodotti o colori. Eliminare un prodotto dal catalogo non rende invalido lo storico.
+
+### Payload Minimo Del Browser
+
+Il browser non invia prezzi, nomi dei prodotti o colori testuali come valori affidabili. Per un prodotto invia soltanto:
+
+```json
+{
+  "type": "catalog",
+  "productId": 1,
+  "colorId": 1,
+  "quantity": 2
+}
+```
+
+Per file e link invia i riferimenti necessari. Il server usa nuovamente database e filesystem per costruire gli snapshot.
+
+Anche se un utente aggiunge manualmente `priceCents: 1` al payload, quel valore viene ignorato. Il prezzo viene letto dalla tabella `products`.
+
+### Rivalidazione Completa
+
+`POST /api/orders` controlla:
+
+- nome e cognome da 1 a 60 caratteri, senza caratteri di controllo;
+- presenza di 1-100 righe;
+- quantita intera da 1 a 99;
+- prodotto ancora visibile;
+- colore ancora attivo;
+- assenza di configurazioni duplicate;
+- UUID e presenza di ogni STL;
+- scadenza e contenuto del file;
+- HTTPS e allowlist per ogni link.
+
+Questi controlli non riutilizzano come verita i dati gia validati dal browser. Tra aggiunta al carrello e invio, un prodotto potrebbe essere stato nascosto o un file potrebbe essere scaduto.
+
+### Persistenza Degli STL
+
+Gli upload temporanei vivono in `storage/uploads`. Prima del salvataggio dell'ordine, ciascun file unico viene copiato in `storage/orders` con un nome composto da codice richiesta e UUID.
+
+La sequenza protegge i dati:
+
+1. validazione di tutti gli elementi;
+2. copia dei file permanenti con divieto di sovrascrittura;
+3. transazione SQLite per ordine e righe;
+4. eliminazione dei temporanei solo dopo il commit.
+
+Se una copia o la transazione fallisce, le copie gia create vengono eliminate. Se uno stesso STL e usato in piu configurazioni colore, viene copiato una sola volta e condiviso dagli snapshot.
+
+Filesystem e SQLite non possono partecipare alla stessa transazione atomica. La strategia di copia e compensazione riduce il rischio senza cancellare il temporaneo prima che il database abbia confermato il salvataggio.
+
+### Codice Univoco
+
+Il codice usa il formato:
+
+```text
+PPL-AAAAMMGG-XXXXXX
+```
+
+La prima parte contiene la data UTC e il suffisso contiene tre byte casuali rappresentati in esadecimale. Prima dell'uso viene verificata l'assenza nel database; la colonna `UNIQUE` rimane la protezione definitiva contro collisioni.
+
+La risposta pubblica e intenzionalmente minima:
+
+```json
+{
+  "data": {
+    "code": "PPL-20260716-ABC123"
+  }
+}
+```
+
+### Email Simulata
+
+Non viene inviato alcun messaggio reale. Per ogni richiesta viene creato:
+
+```text
+storage/emails/<codice>.txt
+```
+
+Il file contiene codice, nome, cognome, righe, colori, quantita, prezzi noti, file, link e totale catalogo. Questa cartella e esclusa da Git perche contiene dati personali e dettagli delle richieste.
+
+La scrittura usa la modalita esclusiva: un file esistente non viene sovrascritto. Un errore della simulazione viene registrato, ma non annulla una richiesta gia salvata correttamente.
+
+### Riepilogo Finale
+
+Il pulsante "Invia richiesta" e disabilitato quando il carrello e vuoto. Il dialog finale mostra:
+
+- pezzi complessivi;
+- pezzi che richiedono valutazione;
+- totale dei prodotti a prezzo noto;
+- nome e cognome come unici dati richiesti.
+
+Il submit viene disabilitato durante la chiamata per evitare doppi clic. In caso di errore il carrello rimane disponibile per una correzione.
+
+### Conferma
+
+Dopo HTTP `201` il browser:
+
+- elimina il carrello da `localStorage`;
+- aggiorna il contatore a zero;
+- nasconde il form;
+- mostra conferma e codice univoco.
+
+Il dialog non mostra nuovamente dati personali o dettagli dell'ordine. Poiche non esiste un account cliente, il codice deve essere annotato prima di chiudere.
+
+### Dati Personali
+
+Nome e cognome sono dati personali e vengono conservati nel database locale fino all'eliminazione manuale della richiesta. Database, email simulate e file degli ordini non devono essere inseriti nel repository.
+
+Prima di una pubblicazione reale saranno necessari controllo degli accessi, backup, HTTPS e informativa sul trattamento dei dati.
+
+### Verifiche
+
+La fase verifica:
+
+- terza migrazione e vincoli delle tabelle;
+- ordine misto con prodotto, STL e link;
+- normalizzazione di nome e cognome;
+- prezzo riletto dal database e snapshot storico;
+- codice nel formato previsto;
+- file permanente e rimozione del temporaneo;
+- contenuto completo dell'email simulata;
+- rifiuto di nome, quantita, link e upload manipolati;
+- assenza di record dopo richieste non valide;
+- riepilogo e conferma nel browser;
+- svuotamento del carrello;
+- resa desktop e mobile.
+
+## 22. Esito Della Fase 7
+
+Il percorso pubblico e ora completo fino alla registrazione della richiesta. Ordini, snapshot, file ed email simulate sono persistenti; la prossima fase introdurra accesso amministrativo e gestione delle richieste.

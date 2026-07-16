@@ -36,6 +36,7 @@ npm.cmd test
 - `POST /api/custom-models/upload`: caricamento temporaneo di un file STL.
 - `POST /api/custom-models/link`: validazione di un link esterno.
 - `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
+- `POST /api/orders`: creazione di una richiesta persistente.
 
 ## Documentazione
 

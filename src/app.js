@@ -3,12 +3,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerCatalogRoutes } from "./catalog-routes.js";
 import { registerCustomModelRoutes } from "./custom-model-routes.js";
+import { registerOrderRoutes } from "./order-routes.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
 const threeDirectory = path.join(currentDirectory, "..", "node_modules", "three");
 
-export function createApp({ database, uploadDirectory } = {}) {
+export function createApp({
+  database,
+  uploadDirectory,
+  orderFileDirectory,
+  emailOutboxDirectory,
+} = {}) {
   if (!database) {
     throw new TypeError("createApp richiede una connessione al database");
   }
@@ -27,6 +33,12 @@ export function createApp({ database, uploadDirectory } = {}) {
   });
 
   registerCatalogRoutes(app, database);
+  registerOrderRoutes(app, {
+    database,
+    uploadDirectory,
+    orderFileDirectory,
+    emailOutboxDirectory,
+  });
 
   return app;
 }

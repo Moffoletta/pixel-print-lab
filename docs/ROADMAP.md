@@ -6,29 +6,40 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 6 e conclusa.
+- Nessuna attivita. La fase 7 e conclusa.
 
 ## Da fare
 
-### Fase 7 - Invio delle richieste
+### Fase 8 - Accesso amministrativo e ordini
 
-- [ ] Creare tabelle per richieste ed elementi con dati storici.
-- [ ] Mostrare il riepilogo finale e raccogliere nome e cognome.
-- [ ] Validare nuovamente catalogo, colori, quantita, link e upload.
-- [ ] Rendere permanenti gli STL inclusi nella richiesta.
-- [ ] Generare un codice univoco di conferma.
-- [ ] Simulare l'email con tutti i dettagli.
-- [ ] Confermare l'invio e svuotare il carrello.
+- [ ] Proteggere l'area amministrativa con password e sessione.
+- [ ] Creare login e logout.
+- [ ] Elencare e consultare richieste e relativi snapshot.
+- [ ] Modificare nome, cognome, righe, colori e quantita.
+- [ ] Eliminare richieste, file permanenti ed email simulate.
+- [ ] Verificare autorizzazione, errori e responsive.
 
 ## Backlog
 
-- [ ] Accesso amministratore con sessione.
-- [ ] Gestione di prodotti, colori e ordini.
+- [ ] Gestione amministrativa di prodotti e colori.
 - [ ] Statistiche anonime senza cookie.
 - [ ] Animazioni pixel art legate alla stampa 3D.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 7 - Invio delle richieste
+
+- [x] Create tabelle per ordini e snapshot storici.
+- [x] Aggiunto riepilogo finale con nome e cognome.
+- [x] Rivalidati prodotti, prezzi, colori, quantita, link e upload.
+- [x] Copiati gli STL in storage permanente con compensazione degli errori.
+- [x] Generato un codice richiesta univoco.
+- [x] Creata un'email simulata con tutti i dettagli.
+- [x] Mostrata conferma con il solo codice.
+- [x] Svuotato il carrello soltanto dopo il successo.
+- [x] Verificato il flusso misto su desktop e mobile.
+- [x] Aggiornati test, guida tecnica ed esercizi.
 
 ### Fase 6 - Modelli personali
 

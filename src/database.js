@@ -57,6 +57,45 @@ const migrations = [
       WHERE slug = 'supporto-controller' AND model_url IS NULL;
     `,
   },
+  {
+    version: 3,
+    name: "create_orders",
+    sql: `
+      CREATE TABLE orders (
+        id INTEGER PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        catalog_total_cents INTEGER NOT NULL CHECK (catalog_total_cents >= 0),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE order_items (
+        id INTEGER PRIMARY KEY,
+        order_id INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        item_type TEXT NOT NULL CHECK (item_type IN ('catalog', 'custom_file', 'custom_link')),
+        product_id INTEGER,
+        product_code TEXT,
+        product_name TEXT NOT NULL,
+        unit_price_cents INTEGER CHECK (unit_price_cents IS NULL OR unit_price_cents >= 0),
+        color_id INTEGER NOT NULL,
+        color_name TEXT NOT NULL,
+        color_hex TEXT NOT NULL,
+        quantity INTEGER NOT NULL CHECK (quantity BETWEEN 1 AND 99),
+        original_name TEXT,
+        source_name TEXT,
+        external_url TEXT,
+        model_filename TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        UNIQUE (order_id, position)
+      );
+
+      CREATE INDEX orders_created_at_idx ON orders (created_at DESC, id DESC);
+      CREATE INDEX order_items_order_idx ON order_items (order_id, position);
+    `,
+  },
 ];
 
 const products = [
