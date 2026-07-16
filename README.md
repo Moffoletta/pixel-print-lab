@@ -44,5 +44,6 @@ npm.cmd test
 ## Documentazione
 
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): Kanban e avanzamento.
+- [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md): schema grafico, componenti e flussi dell'applicazione.
 - [`docs/guida-progetto.md`](docs/guida-progetto.md): guida tecnica progressiva.
 - [`docs/esercizi.md`](docs/esercizi.md): esercizi didattici separati.

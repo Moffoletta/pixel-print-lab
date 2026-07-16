@@ -161,5 +161,6 @@ Ultimo aggiornamento: 16 luglio 2026.
 - Una scheda entra in **In corso** prima di essere sviluppata.
 - Deve esserci una sola fase principale in corso.
 - Una scheda e completata solo dopo test e aggiornamento della documentazione.
+- Ogni modifica strutturale aggiorna anche `docs/ARCHITETTURA.md`.
 - Nuove idee non urgenti entrano nel **Backlog**.
 - Le modifiche che cambiano i requisiti vengono chiarite prima dell'implementazione.

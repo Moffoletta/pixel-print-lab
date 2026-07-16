@@ -1168,3 +1168,5 @@ I test coprono autorizzazione, CRUD dei prodotti, servizio e rimozione degli ass
 ## 26. Esito Della Fase 9
 
 Catalogo, file e palette globale sono ora gestibili dalla Control Room. Gli ordini storici restano indipendenti dalle modifiche successive e lo storage distingue asset dimostrativi, upload temporanei, file degli ordini e file amministrativi del catalogo.
+
+La vista aggiornata dei componenti e dei flussi e mantenuta in [`ARCHITETTURA.md`](ARCHITETTURA.md). Ogni fase che modifica la struttura dell'applicazione deve aggiornare anche quel documento.
