@@ -18,9 +18,19 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 - [ ] Statistiche anonime senza cookie.
 - [ ] Animazioni pixel art legate alla stampa 3D.
-- [ ] Preparazione alla pubblicazione.
+- [ ] Preparazione alla pubblicazione dietro reverse proxy HTTPS.
 
 ## Completato
+
+### Distribuzione self-hosted con Docker
+
+- [x] Aggiunta immagine di produzione basata su Node.js 22.
+- [x] Configurato Docker Compose con variabili d'ambiente sovrascrivibili.
+- [x] Separati database e storage in volumi persistenti.
+- [x] Eseguito il container come utente non-root con filesystem in sola lettura.
+- [x] Aggiunti setup idempotente, health check e arresto controllato.
+- [x] Documentati avvio, aggiornamento, persistenza e backup.
+- [x] Aggiunta validazione automatica di Compose e build immagine in GitHub Actions.
 
 ### Tracciamento pubblico delle richieste
 

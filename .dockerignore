@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+node_modules
+data
+storage
+test
+docs
+*.md
+npm-debug.log*
+Dockerfile*
+compose*.yml
+compose*.yaml

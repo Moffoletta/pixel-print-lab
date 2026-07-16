@@ -126,8 +126,8 @@
     <rect x="1045" y="597" width="210" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
     <rect x="1045" y="597" width="210" height="35" fill="#70d69a"/>
     <text x="1070" y="672" class="node-title">Persistenza</text>
-    <text x="1070" y="702" class="node-copy">SQLite</text>
-    <text x="1070" y="726" class="node-copy">Storage locale</text>
+    <text x="1070" y="702" class="node-copy">Volume SQLite</text>
+    <text x="1070" y="726" class="node-copy">Volume storage</text>
     <text x="1070" y="750" class="node-copy">Snapshot storici</text>
   </g>
 
@@ -158,6 +158,6 @@
     <text x="322" y="5" class="small">Flusso amministrativo</text>
     <line x1="580" y1="0" x2="634" y2="0" class="data-flow"/>
     <text x="652" y="5" class="small">Persistenza e file</text>
-    <text x="1085" y="5" class="small">TRACKING PUBBLICO / 17-07-2026</text>
+    <text x="1040" y="5" class="small">DOCKER COMPOSE SELF-HOSTED / 17-07-2026</text>
   </g>
 </svg>
