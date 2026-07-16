@@ -25,11 +25,13 @@ Ultimo aggiornamento: 16 luglio 2026.
 ### Tracciamento pubblico delle richieste
 
 - [ ] Aggiungere agli ordini gli stati `in attesa`, `in lavorazione` e `completato`.
-- [ ] Permettere all'amministratore di cambiare manualmente lo stato dal pannello.
+- [ ] Assegnare automaticamente lo stato iniziale `in attesa` e permettere i cambi successivi dal pannello.
 - [ ] Aggiungere alla pagina principale una colonna pubblica con codice richiesta e stato.
-- [ ] Ordinare cronologicamente le richieste senza mostrare nome, cognome o dettagli dei modelli.
-- [ ] Definire comportamento responsive della colonna su schermi stretti.
-- [ ] Definire ordine cronologico, permanenza degli ordini completati e formato del codice pubblico.
+- [ ] Ordinare le richieste dalla piu recente alla piu vecchia.
+- [ ] Mostrare il codice completo senza nome, cognome o dettagli dei modelli.
+- [ ] Mantenere visibili anche le richieste completate finche non vengono eliminate manualmente.
+- [ ] Aggiungere una piccola animazione pixel art alle richieste `in lavorazione`.
+- [ ] Su mobile trasformare la colonna in una sezione posizionata prima del catalogo.
 - [ ] Verificare privacy, accessibilita e aggiornamento dell'elenco.
 
 ### Altre funzionalita
