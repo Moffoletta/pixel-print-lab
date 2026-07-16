@@ -361,6 +361,22 @@ h1 em {
   gap: 2rem;
 }
 
+.catalog-status {
+  margin: 2rem 0;
+  padding: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--orange);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.catalog-status--error {
+  color: var(--paper);
+  background: #9c2f22;
+}
+
 .product-card {
   color: var(--ink);
   background: var(--panel);

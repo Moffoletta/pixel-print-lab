@@ -201,3 +201,143 @@ Il controllo non sostituisce una prova visiva in browser, ma protegge la struttu
 ## 12. Esito Della Fase 2
 
 La pagina pubblica ha ora una struttura completa e responsive. I prodotti restano scritti direttamente nell'HTML: nella fase 3 verranno trasferiti in SQLite e caricati attraverso API REST.
+
+## 13. Fase 3 - Database E API
+
+### Dal Contenuto Statico Ai Record
+
+Nella fase 2 ogni prodotto era scritto direttamente in `index.html`. Questo approccio e semplice, ma richiederebbe di modificare il codice per aggiungere un prodotto o cambiare un prezzo.
+
+La fase 3 sposta prodotti e colori in SQLite. L'HTML contiene ora un solo `template` di scheda; JavaScript richiede i record al server e crea una scheda per ciascun prodotto ricevuto.
+
+Il flusso e:
+
+```text
+SQLite -> query SQL -> API Express -> JSON -> fetch -> DOM
+```
+
+Questa separazione prepara il futuro pannello amministrativo: modificare un record nel database aggiornera il catalogo senza riscrivere la pagina.
+
+### Perche SQLite
+
+SQLite e un database relazionale salvato in un file locale. Non richiede un servizio separato e risponde bene alle esigenze di un progetto personale con pochi utenti.
+
+Il file predefinito e `data/pixel-print-lab.db`. Non entra in Git perche contiene dati locali modificabili. Codice, migrazioni e seed sono invece versionati e permettono di ricreare una base coerente.
+
+Il progetto usa `better-sqlite3`, una libreria che espone query SQL dirette. Le operazioni sono sincrone: per il volume previsto rendono il codice lineare senza rappresentare un limite pratico.
+
+### Tabelle Del Catalogo
+
+`products` contiene:
+
+- identificativo numerico e codice leggibile;
+- `slug` univoco usato dall'interfaccia;
+- nome, categoria e descrizione;
+- prezzo espresso in centesimi;
+- percorsi e testo alternativo dell'immagine;
+- dimensione e materiale;
+- futuro percorso del modello 3D;
+- visibilita e ordine di presentazione;
+- date di creazione e aggiornamento.
+
+`colors` contiene nome, valore esadecimale, disponibilita e ordine.
+
+`schema_migrations` registra quali modifiche strutturali sono state applicate. Gli indici su visibilita e ordinamento aiutano SQLite a trovare velocemente i record che devono essere mostrati.
+
+### Vincoli Del Database
+
+Lo schema protegge i dati anche se una futura operazione dimentica una validazione applicativa:
+
+- `NOT NULL` impedisce valori obbligatori mancanti;
+- `UNIQUE` impedisce codici, slug e nomi duplicati;
+- `CHECK` impedisce prezzi negativi e valori booleani diversi da 0 o 1;
+- il controllo su `hex_value` richiede un colore nel formato `#RRGGBB`;
+- le chiavi primarie identificano un solo record.
+
+Conservare il prezzo in centesimi evita gli errori di approssimazione dei numeri decimali. Per esempio, 12 euro vengono salvati come `1200`.
+
+### Migrazioni
+
+Una migrazione e una modifica numerata allo schema. All'apertura, `migrateDatabase` legge `schema_migrations` e applica soltanto le versioni mancanti all'interno di transazioni.
+
+La transazione rende atomica ogni migrazione: o tutte le istruzioni vengono completate, oppure nessuna modifica parziale viene conservata.
+
+In futuro non si modifichera una migrazione gia applicata. Si aggiungera una nuova versione, in modo che database creati in momenti diversi possano raggiungere lo stesso stato.
+
+### Seed Idempotente
+
+Il seed inserisce i due prodotti dimostrativi e quattro colori:
+
+```powershell
+npm.cmd run db:setup
+```
+
+`ON CONFLICT DO NOTHING` rende il comando idempotente: eseguirlo piu volte non duplica i record e non sovrascrive eventuali modifiche esistenti.
+
+Il seed e esplicito e non viene eseguito a ogni avvio. In questo modo una futura eliminazione intenzionale dal pannello amministrativo non viene annullata al riavvio del server.
+
+### API REST
+
+Le API disponibili sono:
+
+```text
+GET /api/products       elenco dei prodotti visibili
+GET /api/products/:id   singolo prodotto visibile
+GET /api/colors         elenco dei colori attivi
+```
+
+Una risposta di elenco usa questa forma:
+
+```json
+{
+  "data": [],
+  "count": 0
+}
+```
+
+Il server converte i nomi SQL come `price_cents` in proprieta JavaScript come `priceCents`. Questa funzione di serializzazione impedisce di esporre accidentalmente campi interni quali `visible` e `sort_order`.
+
+Un identificativo non numerico restituisce HTTP `400`, mentre un prodotto inesistente restituisce `404`. Gli errori contengono un codice stabile e un messaggio italiano.
+
+### Rendering Nel Browser
+
+`public/app.js` usa `fetch("/api/products")`. Dopo aver verificato il codice HTTP, legge il JSON e clona `#product-template` per ogni record.
+
+I valori vengono assegnati con `textContent` e proprieta DOM invece di costruire HTML da stringhe. Questa scelta riduce il rischio che dati non affidabili vengano interpretati come markup eseguibile.
+
+`Intl.NumberFormat` trasforma i centesimi nel formato italiano in euro. Il contenitore usa `aria-busy` durante il caricamento e un elemento con `role="status"` comunica caricamento, catalogo vuoto o errore.
+
+### Connessione E Chiusura
+
+`server.js` apre una connessione all'avvio e la passa a `createApp`. L'applicazione non crea quindi connessioni nascoste ed e possibile sostituire il database reale con uno in memoria nei test.
+
+Quando il processo riceve `SIGINT` o `SIGTERM`, prima chiude il server HTTP e poi il database. Questo evita di interrompere operazioni ancora in corso.
+
+### Test Isolati
+
+I test usano `:memory:`: SQLite crea un database temporaneo in memoria, applica la stessa migrazione e inserisce lo stesso seed. Alla fine il database scompare senza modificare i dati locali.
+
+La suite verifica:
+
+- endpoint di salute e risorse statiche;
+- struttura della pagina e collegamento allo script;
+- elenco e dettaglio prodotti;
+- ordine e trasformazione dei campi;
+- risposte `400` e `404`;
+- elenco colori;
+- idempotenza del seed.
+
+### Collegamenti Con ServiceNow
+
+- Una tabella SQLite corrisponde concettualmente a una tabella ServiceNow.
+- Una riga e un record; una colonna e un campo.
+- `id` identifica il record come un `sys_id`, pur usando un formato diverso.
+- I vincoli ricordano Dictionary e Data Policies, anche se non sono equivalenti.
+- Le query preparate separano istruzione e valori, concetto importante anche quando si costruiscono query con GlideRecord.
+- La serializzazione controlla quali campi una API espone, come avviene in una Scripted REST API.
+- I codici HTTP distinguono successo, input errato e record assente.
+- `fetch` rappresenta il lato client che consuma una API, analogo a una chiamata asincrona da un'interfaccia ServiceNow.
+
+## 14. Esito Della Fase 3
+
+Catalogo e colori hanno ora una sorgente dati persistente. Il browser costruisce le schede usando l'API e il server valida gli identificativi richiesti. Le operazioni restano in sola lettura: creazione e modifica entreranno nel pannello amministrativo.

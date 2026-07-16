@@ -5,14 +5,16 @@
   "description": "Applicazione personale per raccogliere richieste di stampa 3D.",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
+    "db:setup": "node --env-file-if-exists=.env src/setup-database.js",
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
     "test": "node --test"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
+    "better-sqlite3": "^12.2.0",
     "express": "^5.1.0"
   }
 }

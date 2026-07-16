@@ -54,47 +54,30 @@
           <p>Due modelli di esempio. Il catalogo definitivo verra gestito dal pannello amministrativo.</p>
         </header>
 
-        <div class="product-grid">
-          <article class="product-card" data-product="vaso-orbitale">
-            <div class="product-card__visual">
-              <p class="product-card__code">MOD_001</p>
-              <img src="/images/vaso-orbitale.svg" width="640" height="480" alt="Vaso arancione sfaccettato su una griglia tecnica">
-              <span class="product-card__view">Anteprima</span>
-            </div>
-            <div class="product-card__body">
-              <div>
-                <p class="product-card__type">Casa / Decorazione</p>
-                <h3>Vaso Orbitale</h3>
-              </div>
-              <p class="product-card__price"><data value="12.00">&euro; 12,00</data></p>
-              <p class="product-card__description">Un piccolo vaso geometrico, pensato per fiori secchi e scrivanie con poco spazio.</p>
-              <dl class="product-card__specs">
-                <div><dt>Altezza</dt><dd>14 cm</dd></div>
-                <div><dt>Materiale</dt><dd>PLA</dd></div>
-              </dl>
-            </div>
-          </article>
+        <p class="catalog-status" id="catalog-status" role="status">Caricamento catalogo...</p>
+        <div class="product-grid" id="product-list" aria-live="polite" aria-busy="true"></div>
 
-          <article class="product-card product-card--blue" data-product="supporto-controller">
+        <template id="product-template">
+          <article class="product-card">
             <div class="product-card__visual">
-              <p class="product-card__code">MOD_002</p>
-              <img src="/images/supporto-controller.svg" width="640" height="480" alt="Supporto blu per controller rappresentato in pixel art">
+              <p class="product-card__code" data-field="code"></p>
+              <img width="640" height="480" data-field="image">
               <span class="product-card__view">Anteprima</span>
             </div>
             <div class="product-card__body">
               <div>
-                <p class="product-card__type">Desk / Gaming</p>
-                <h3>Dock Controller</h3>
+                <p class="product-card__type" data-field="category"></p>
+                <h3 data-field="name"></h3>
               </div>
-              <p class="product-card__price"><data value="9.50">&euro; 9,50</data></p>
-              <p class="product-card__description">Supporto inclinato per tenere il controller visibile, stabile e sempre a portata di mano.</p>
+              <p class="product-card__price"><data data-field="price"></data></p>
+              <p class="product-card__description" data-field="description"></p>
               <dl class="product-card__specs">
-                <div><dt>Larghezza</dt><dd>9 cm</dd></div>
-                <div><dt>Materiale</dt><dd>PLA</dd></div>
+                <div><dt data-field="dimension-label"></dt><dd data-field="dimension-value"></dd></div>
+                <div><dt>Materiale</dt><dd data-field="material"></dd></div>
               </dl>
             </div>
           </article>
-        </div>
+        </template>
       </section>
 
       <section class="custom-model" id="modello-personale" aria-labelledby="titolo-modello-personale">
@@ -112,7 +95,8 @@
 
     <footer class="site-footer">
       <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
-      <p>Progetto locale <span aria-hidden="true">[fase 02]</span></p>
+      <p>Progetto locale <span aria-hidden="true">[fase 03]</span></p>
     </footer>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

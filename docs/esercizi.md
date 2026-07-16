@@ -105,3 +105,90 @@ Concetto ServiceNow: ogni risorsa del browser viene ottenuta tramite una richies
 3. Cosa cambia sotto gli `860px`?
 4. Perche non sono presenti pulsanti di configurazione ancora inattivi?
 5. Quale vantaggio offre una custom property CSS?
+
+## Fase 3 - Database E API
+
+### 1. Ricrea I Dati Iniziali
+
+Esegui due volte:
+
+```powershell
+npm.cmd run db:setup
+```
+
+Verifica che entrambi i risultati mostrino sempre due prodotti e quattro colori. Individua in `seedDatabase` l'istruzione che impedisce i duplicati.
+
+Obiettivo: comprendere l'idempotenza.
+
+### 2. Leggi Una Risposta JSON
+
+Con il server avviato, visita:
+
+```text
+http://localhost:3000/api/products
+```
+
+Individua array, oggetti, stringhe, numeri e valore `null`. Confronta i nomi delle proprieta JSON con le colonne definite in `src/database.js`.
+
+Concetto ServiceNow: trasformare un record prima di esporlo tramite API.
+
+### 3. Osserva I Codici HTTP
+
+Visita questi indirizzi e confronta le risposte nella scheda Network:
+
+```text
+/api/products/1
+/api/products/999
+/api/products/test
+```
+
+Spiega perche producono rispettivamente `200`, `404` e `400`.
+
+### 4. Esegui Una Query Di Lettura
+
+In `src/setup-database.js`, aggiungi temporaneamente una query che selezioni nome e prezzo dei prodotti ordinati dal prezzo piu alto al piu basso. Stampa il risultato con `console.table`, quindi annulla la modifica.
+
+La query da costruire inizia con:
+
+```sql
+SELECT name, price_cents
+FROM products
+```
+
+Obiettivo: esercitarsi con `SELECT`, `FROM` e `ORDER BY`.
+
+### 5. Nascondi Un Prodotto
+
+Come esperimento locale, modifica `visible` di un prodotto direttamente nel database usando una query `UPDATE`. Ricarica `/api/products` e verifica che il record non venga restituito. Al termine ripristina il valore.
+
+Concetto ServiceNow: una condizione della query decide quali record sono visibili nell'elenco.
+
+### 6. Segui Il Flusso Di Fetch
+
+Inserisci temporaneamente un breakpoint nella funzione `loadProducts` di `public/app.js`. Osserva in ordine:
+
+1. la risposta HTTP;
+2. il corpo JSON;
+3. il prodotto passato a `createProductCard`;
+4. l'elemento aggiunto al DOM.
+
+Obiettivo: seguire un dato dal server all'interfaccia.
+
+### 7. Simula Un Errore
+
+Modifica temporaneamente l'URL di `fetch` in un indirizzo inesistente. Verifica il messaggio mostrato nella pagina e l'errore nella console, poi ripristina l'URL.
+
+Concetto ServiceNow: ogni chiamata remota deve gestire anche il fallimento.
+
+### 8. Aggiungi Un Colore Di Prova
+
+Aggiungi temporaneamente un quinto colore all'array `colors`, ricrea un database di prova o elimina soltanto il record se gia presente, quindi esegui il setup. Controlla la risposta di `/api/colors` e annulla l'esperimento.
+
+## Autovalutazione Della Fase 3
+
+1. Perche il prezzo viene memorizzato in centesimi?
+2. Qual e la differenza tra migrazione e seed?
+3. Perche il database dei test usa `:memory:`?
+4. Cosa rende una query preparata preferibile alla concatenazione di stringhe?
+5. In quale punto un nome SQL viene convertito nel formato JavaScript?
+6. Perche il browser non riceve il campo `visible`?

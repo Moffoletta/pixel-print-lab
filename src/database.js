@@ -1,0 +1,148 @@
+import Database from "better-sqlite3";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+export const defaultDatabasePath = path.join(currentDirectory, "..", "data", "pixel-print-lab.db");
+
+const migrations = [
+  {
+    version: 1,
+    name: "create_catalog",
+    sql: `
+      CREATE TABLE products (
+        id INTEGER PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        slug TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
+        image_url TEXT NOT NULL,
+        image_alt TEXT NOT NULL,
+        dimension_label TEXT NOT NULL,
+        dimension_value TEXT NOT NULL,
+        material TEXT NOT NULL,
+        model_url TEXT,
+        visible INTEGER NOT NULL DEFAULT 1 CHECK (visible IN (0, 1)),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE colors (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        hex_value TEXT NOT NULL CHECK (hex_value GLOB '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]'),
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX products_visible_sort_idx ON products (visible, sort_order, id);
+      CREATE INDEX colors_active_sort_idx ON colors (active, sort_order, id);
+    `,
+  },
+];
+
+const products = [
+  {
+    code: "MOD_001",
+    slug: "vaso-orbitale",
+    name: "Vaso Orbitale",
+    category: "Casa / Decorazione",
+    description: "Un piccolo vaso geometrico, pensato per fiori secchi e scrivanie con poco spazio.",
+    priceCents: 1200,
+    imageUrl: "/images/vaso-orbitale.svg",
+    imageAlt: "Vaso arancione sfaccettato su una griglia tecnica",
+    dimensionLabel: "Altezza",
+    dimensionValue: "14 cm",
+    material: "PLA",
+    sortOrder: 10,
+  },
+  {
+    code: "MOD_002",
+    slug: "supporto-controller",
+    name: "Dock Controller",
+    category: "Desk / Gaming",
+    description: "Supporto inclinato per tenere il controller visibile, stabile e sempre a portata di mano.",
+    priceCents: 950,
+    imageUrl: "/images/supporto-controller.svg",
+    imageAlt: "Supporto blu per controller rappresentato in pixel art",
+    dimensionLabel: "Larghezza",
+    dimensionValue: "9 cm",
+    material: "PLA",
+    sortOrder: 20,
+  },
+];
+
+const colors = [
+  { name: "Nero", hexValue: "#17201A", sortOrder: 10 },
+  { name: "Bianco", hexValue: "#F3F0E6", sortOrder: 20 },
+  { name: "Arancione", hexValue: "#FF6534", sortOrder: 30 },
+  { name: "Blu", hexValue: "#4277FF", sortOrder: 40 },
+];
+
+export function openDatabase(filename = process.env.DATABASE_PATH ?? defaultDatabasePath) {
+  const database = new Database(filename);
+  database.pragma("foreign_keys = ON");
+  database.pragma("journal_mode = WAL");
+  migrateDatabase(database);
+  return database;
+}
+
+export function migrateDatabase(database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  const appliedVersions = new Set(
+    database.prepare("SELECT version FROM schema_migrations").all().map(({ version }) => version),
+  );
+  const recordMigration = database.prepare(
+    "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+  );
+
+  for (const migration of migrations) {
+    if (appliedVersions.has(migration.version)) {
+      continue;
+    }
+
+    database.transaction(() => {
+      database.exec(migration.sql);
+      recordMigration.run(migration.version, migration.name);
+    })();
+  }
+}
+
+export function seedDatabase(database) {
+  const insertProduct = database.prepare(`
+    INSERT INTO products (
+      code, slug, name, category, description, price_cents, image_url, image_alt,
+      dimension_label, dimension_value, material, sort_order
+    ) VALUES (
+      @code, @slug, @name, @category, @description, @priceCents, @imageUrl, @imageAlt,
+      @dimensionLabel, @dimensionValue, @material, @sortOrder
+    )
+    ON CONFLICT (slug) DO NOTHING
+  `);
+  const insertColor = database.prepare(`
+    INSERT INTO colors (name, hex_value, sort_order)
+    VALUES (@name, @hexValue, @sortOrder)
+    ON CONFLICT (name) DO NOTHING
+  `);
+
+  database.transaction(() => {
+    for (const product of products) {
+      insertProduct.run(product);
+    }
+    for (const color of colors) {
+      insertColor.run(color);
+    }
+  })();
+}

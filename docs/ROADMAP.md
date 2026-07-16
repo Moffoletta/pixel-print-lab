@@ -6,20 +6,22 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 2 e conclusa.
+- Nessuna attivita. La fase 3 e conclusa.
 
 ## Da fare
 
-### Fase 3 - Database e API
+### Fase 4 - Configurazione e carrello
 
-- [ ] Progettare le tabelle SQLite.
-- [ ] Creare dati iniziali ripetibili.
-- [ ] Esporre API REST per prodotti e colori.
-- [ ] Testare validazione e risposte delle API.
+- [ ] Mostrare i colori disponibili per ogni prodotto.
+- [ ] Permettere una quantita compresa tra 1 e 99.
+- [ ] Aggiungere e aggiornare prodotti nel carrello.
+- [ ] Calcolare totale per elemento e totale complessivo.
+- [ ] Costruire un riepilogo responsive e accessibile.
+- [ ] Testare regole e interazioni del carrello.
 
 ## Backlog
 
-- [ ] Carrello misto con quantita e colori.
+- [ ] Integrare i modelli personali nel carrello.
 - [ ] Richieste con nome, cognome e codice univoco.
 - [ ] Upload STL fino a 50 MB.
 - [ ] Link esterni da domini autorizzati.
@@ -32,6 +34,17 @@ Ultimo aggiornamento: 16 luglio 2026.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 3 - Database e API
+
+- [x] Create tabelle SQLite per prodotti, colori e migrazioni.
+- [x] Creato un seed esplicito e idempotente.
+- [x] Esposte API REST in sola lettura per prodotti e colori.
+- [x] Aggiunte validazione degli identificativi e risposte di errore.
+- [x] Collegato il catalogo pubblico alle API tramite `fetch`.
+- [x] Usato un database isolato in memoria nei test.
+- [x] Verificate interfaccia, API, setup ripetuto e dipendenze.
+- [x] Aggiornati README, guida tecnica ed esercizi.
 
 ### Fase 2 - Catalogo statico
 

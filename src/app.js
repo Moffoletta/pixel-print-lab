@@ -1,11 +1,16 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { registerCatalogRoutes } from "./catalog-routes.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
 
-export function createApp() {
+export function createApp({ database } = {}) {
+  if (!database) {
+    throw new TypeError("createApp richiede una connessione al database");
+  }
+
   const app = express();
 
   app.disable("x-powered-by");
@@ -15,6 +20,8 @@ export function createApp() {
   app.get("/api/health", (_request, response) => {
     response.json({ status: "ok" });
   });
+
+  registerCatalogRoutes(app, database);
 
   return app;
 }
