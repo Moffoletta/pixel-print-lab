@@ -18,6 +18,8 @@ npm.cmd run dev
 
 Aprire `http://localhost:3000`. Per verificare il server aprire `http://localhost:3000/api/health`.
 
+Il pannello amministrativo e disponibile su `http://localhost:3000/admin.html` dopo aver impostato `ADMIN_PASSWORD` nel file locale `.env`.
+
 `db:setup` applica le migrazioni SQLite e inserisce i prodotti e i colori dimostrativi. Il comando puo essere ripetuto senza creare duplicati.
 
 Su questo computer viene usato `npm.cmd` perche PowerShell impedisce l'esecuzione di `npm.ps1`. Non e necessario cambiare la policy di sicurezza.
@@ -37,6 +39,7 @@ npm.cmd test
 - `POST /api/custom-models/link`: validazione di un link esterno.
 - `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
 - `POST /api/orders`: creazione di una richiesta persistente.
+- `/api/admin/*`: autenticazione e gestione protetta delle richieste.
 
 ## Documentazione
 

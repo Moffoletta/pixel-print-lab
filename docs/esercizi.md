@@ -432,3 +432,61 @@ Usa `git status` dopo aver creato richieste. Database, email e STL permanenti no
 5. Quali dati contiene il codice richiesta?
 6. Dove vengono conservati nome e cognome?
 7. Perche un errore di invio non deve svuotare il carrello?
+
+## Fase 8 - Accesso Amministrativo E Ordini
+
+### 1. Configura La Password
+
+Crea `.env` con una password personale, riavvia il server e visita `/admin.html`. Verifica con `git status` che il file non venga proposto per il commit.
+
+### 2. Ispeziona Il Cookie
+
+Dopo il login apri Application, Cookies negli strumenti del browser. Individua `ppl_admin_session` e annota `HttpOnly`, `SameSite`, percorso e scadenza.
+
+Prova a leggere il cookie con `document.cookie` e spiega perche il token non compare.
+
+### 3. Chiama Una API Senza Sessione
+
+Apri `/api/admin/orders` in una finestra privata non autenticata e osserva HTTP `401`. Ripeti dopo il login.
+
+### 4. Verifica Il Riavvio
+
+Accedi, riavvia Node.js e ricarica il pannello. La sessione deve essere persa perche lo store e in memoria.
+
+### 5. Modifica Uno Snapshot
+
+Cambia prodotto, colore e quantita di una richiesta. Confronta prima e dopo:
+
+- `orders.catalog_total_cents`;
+- righe in `order_items`;
+- email simulata.
+
+### 6. Osserva Gli ID Delle Righe
+
+Annota gli ID di `order_items`, salva una modifica e rileggili. Spiega perche possono cambiare e quale campo mantiene l'ordine visivo.
+
+### 7. Prova Un Download Protetto
+
+Copia l'URL "Apri STL", esegui logout e aprilo nuovamente. Deve essere rifiutato.
+
+### 8. Rimuovi Una Riga File
+
+Elimina una riga STL da un ordine, salva e controlla `storage/orders`. Verifica che il file venga cancellato soltanto dopo la modifica riuscita.
+
+### 9. Prova Il Limite Login
+
+In un ambiente di prova inserisci cinque volte una password errata. Osserva il passaggio da `401` a `429`. Riavvia il server per azzerare il contatore locale.
+
+### 10. Verifica La Cancellazione
+
+Crea una richiesta di prova, annota record, file ed email, quindi eliminala dal pannello. Tutte le risorse collegate devono scomparire.
+
+## Autovalutazione Della Fase 8
+
+1. Perche proteggere soltanto `admin.html` non sarebbe sufficiente?
+2. Quali attributi proteggono il cookie?
+3. Dove vengono conservate le sessioni?
+4. Perche il server rivalida anche le modifiche amministrative?
+5. Come viene aggiornato un ordine in una transazione?
+6. Quando viene eliminato un file STL permanente?
+7. Quali limiti ha l'autenticazione attuale?

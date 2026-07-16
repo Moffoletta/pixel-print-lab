@@ -29,6 +29,7 @@ before(async () => {
     uploadDirectory,
     orderFileDirectory,
     emailOutboxDirectory,
+    adminPassword: "test-admin-password",
   }).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -89,6 +90,9 @@ test("serve gli asset pubblici", async () => {
     "/models/supporto-controller.stl",
     "/vendor/three/build/three.module.js",
     "/vendor/three/examples/jsm/loaders/STLLoader.js",
+    "/admin.html",
+    "/admin.css",
+    "/admin.js",
   ];
   const responses = await Promise.all(paths.map((path) => fetch(`${baseUrl}${path}`)));
 
@@ -409,4 +413,100 @@ test("rifiuta richieste manipolate senza creare record", async () => {
   }
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, initialCount);
+});
+
+test("protegge le API amministrative e gestisce il ciclo completo di un ordine", async () => {
+  const unauthorized = await fetch(`${baseUrl}/api/admin/orders`);
+  assert.equal(unauthorized.status, 401);
+
+  const wrongLogin = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "errata" }),
+  });
+  assert.equal(wrongLogin.status, 401);
+
+  const login = await fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "test-admin-password" }),
+  });
+  const setCookie = login.headers.get("set-cookie");
+  const cookie = setCookie.split(";", 1)[0];
+  assert.equal(login.status, 201);
+  assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /SameSite=Strict/);
+
+  const adminFetch = (pathName, options = {}) =>
+    fetch(`${baseUrl}${pathName}`, {
+      ...options,
+      headers: { cookie, ...(options.headers ?? {}) },
+    });
+  assert.equal((await adminFetch("/api/admin/session")).status, 200);
+
+  const listResponse = await adminFetch("/api/admin/orders");
+  const list = await listResponse.json();
+  assert.equal(listResponse.status, 200);
+  assert.equal(list.count, 1);
+  assert.equal(list.data[0].itemCount, 3);
+  const orderId = list.data[0].id;
+
+  const detailResponse = await adminFetch(`/api/admin/orders/${orderId}`);
+  const detail = (await detailResponse.json()).data;
+  const customFile = detail.items.find((item) => item.itemType === "custom_file");
+  assert.equal(detail.items.length, 3);
+  assert.equal(
+    (await fetch(`${baseUrl}/api/admin/orders/${orderId}/items/${customFile.id}/model`)).status,
+    401,
+  );
+  assert.equal(
+    (await adminFetch(`/api/admin/orders/${orderId}/items/${customFile.id}/model`)).status,
+    200,
+  );
+
+  const updateResponse = await adminFetch(`/api/admin/orders/${orderId}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Mario",
+      lastName: "Bianchi",
+      items: [
+        { itemType: "catalog", productId: 2, colorId: 4, quantity: 3 },
+        { id: customFile.id, itemType: "custom_file", colorId: 3, quantity: 2 },
+        { itemType: "catalog", productId: 1, colorId: 2, quantity: 1 },
+      ],
+    }),
+  });
+  assert.equal(updateResponse.status, 200);
+
+  const updated = (await (await adminFetch(`/api/admin/orders/${orderId}`)).json()).data;
+  assert.equal(updated.firstName, "Mario");
+  assert.equal(updated.lastName, "Bianchi");
+  assert.equal(updated.catalogTotalCents, 4050);
+  assert.equal(updated.items.length, 3);
+  assert.equal(updated.items[0].productName, "Dock Controller");
+  assert.equal(updated.items[1].colorName, "Arancione");
+  assert.equal(updated.items.some((item) => item.itemType === "custom_link"), false);
+  const updatedEmail = await readFile(
+    path.join(emailOutboxDirectory, `${updated.code}.txt`),
+    "utf8",
+  );
+  assert.match(updatedEmail, /Nome: Mario/);
+  assert.match(updatedEmail, /Dock Controller/);
+  assert.doesNotMatch(updatedEmail, /MakerWorld/);
+
+  const updatedCustomFile = updated.items.find((item) => item.itemType === "custom_file");
+  assert.equal(
+    (await adminFetch(`/api/admin/orders/${orderId}/items/${updatedCustomFile.id}/model`)).status,
+    200,
+  );
+  const deleteResponse = await adminFetch(`/api/admin/orders/${orderId}`, { method: "DELETE" });
+  assert.equal(deleteResponse.status, 204);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, 0);
+  assert.equal((await readdir(orderFileDirectory)).length, 0);
+  assert.equal((await readdir(emailOutboxDirectory)).length, 0);
+
+  const logout = await adminFetch("/api/admin/logout", { method: "POST" });
+  assert.equal(logout.status, 204);
+  assert.equal((await adminFetch("/api/admin/session")).status, 401);
 });

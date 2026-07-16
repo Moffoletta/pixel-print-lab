@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Pannello amministrativo di Pixel Print Lab.">
+    <title>Amministrazione | Pixel Print Lab</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/admin.css">
+  </head>
+  <body class="admin-body">
+    <main class="admin-shell">
+      <section class="admin-login" id="login-view" aria-labelledby="login-title">
+        <div class="admin-login__mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p class="section-number">Area riservata</p>
+        <h1 id="login-title">Pixel Print<br>Control Room</h1>
+        <p>Inserisci la password amministrativa configurata sul server.</p>
+        <form id="login-form">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" name="password" type="password" autocomplete="current-password" required>
+          <p class="admin-feedback" id="login-feedback" role="status"></p>
+          <button type="submit">Accedi</button>
+        </form>
+        <a href="/">Torna al catalogo</a>
+      </section>
+
+      <section class="admin-dashboard" id="dashboard-view" aria-labelledby="dashboard-title" hidden>
+        <header class="admin-header">
+          <a class="brand" href="/" aria-label="Pixel Print Lab, catalogo">
+            <span class="brand__mark" aria-hidden="true"></span>
+            <span>Pixel Print Lab</span>
+          </a>
+          <div>
+            <p class="section-number">Pannello amministrativo</p>
+            <h1 id="dashboard-title">Richieste</h1>
+          </div>
+          <button class="admin-logout" id="logout-button" type="button">Esci</button>
+        </header>
+
+        <div class="admin-workspace">
+          <aside class="order-sidebar" aria-labelledby="order-list-title">
+            <div class="order-sidebar__heading">
+              <h2 id="order-list-title">Archivio</h2>
+              <span id="order-count">00</span>
+            </div>
+            <p class="order-list-status" id="order-list-status" role="status">Caricamento richieste...</p>
+            <div class="order-list" id="order-list"></div>
+          </aside>
+
+          <section class="order-editor" aria-live="polite">
+            <div class="order-empty" id="order-empty">
+              <span aria-hidden="true">&lt;/&gt;</span>
+              <h2>Seleziona una richiesta</h2>
+              <p>I dettagli e gli strumenti di modifica appariranno qui.</p>
+            </div>
+
+            <form id="order-form" hidden>
+              <header class="order-editor__header">
+                <div>
+                  <p class="section-number" id="order-date"></p>
+                  <h2 id="order-code"></h2>
+                </div>
+                <strong id="order-total"></strong>
+              </header>
+
+              <div class="admin-customer">
+                <label for="order-first-name"><span>Nome</span><input id="order-first-name" maxlength="60" required></label>
+                <label for="order-last-name"><span>Cognome</span><input id="order-last-name" maxlength="60" required></label>
+              </div>
+
+              <div class="admin-items-heading">
+                <h3>Elementi</h3>
+                <button id="add-catalog-item" type="button">+ Prodotto</button>
+              </div>
+              <div class="admin-items" id="admin-items"></div>
+
+              <p class="admin-feedback" id="order-feedback" role="status"></p>
+              <div class="order-actions">
+                <button class="delete-order" id="delete-order" type="button">Elimina richiesta</button>
+                <button class="save-order" id="save-order" type="submit">Salva modifiche</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <template id="order-list-template">
+      <button class="order-list-item" type="button">
+        <span data-field="list-code"></span>
+        <strong data-field="list-name"></strong>
+        <small><span data-field="list-pieces"></span> pezzi <i>/</i> <span data-field="list-date"></span></small>
+      </button>
+    </template>
+
+    <template id="admin-item-template">
+      <article class="admin-item">
+        <header>
+          <div><span data-field="item-type"></span><h4 data-field="item-name"></h4></div>
+          <button data-field="remove-item" type="button">Rimuovi</button>
+        </header>
+        <div class="admin-item__fields">
+          <label data-field="product-field"><span>Prodotto</span><select data-field="product"></select></label>
+          <label><span>Colore</span><select data-field="color"></select></label>
+          <label><span>Quantita</span><input data-field="quantity" type="number" min="1" max="99" required></label>
+        </div>
+        <div class="admin-item__resource">
+          <a data-field="model-link" target="_blank" rel="noopener" hidden>Apri STL</a>
+          <a data-field="external-link" target="_blank" rel="noopener noreferrer" hidden>Apri link esterno</a>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="/admin.js"></script>
+  </body>
+</html>

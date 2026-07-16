@@ -8,6 +8,7 @@ const app = createApp({
   uploadDirectory: process.env.UPLOAD_DIRECTORY,
   orderFileDirectory: process.env.ORDER_FILE_DIRECTORY,
   emailOutboxDirectory: process.env.EMAIL_OUTBOX_DIRECTORY,
+  adminPassword: process.env.ADMIN_PASSWORD,
 });
 
 const server = app.listen(port, () => {

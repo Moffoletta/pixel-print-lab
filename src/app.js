@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { registerCatalogRoutes } from "./catalog-routes.js";
 import { registerCustomModelRoutes } from "./custom-model-routes.js";
 import { registerOrderRoutes } from "./order-routes.js";
+import { registerAdminRoutes } from "./admin-routes.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
@@ -14,6 +15,7 @@ export function createApp({
   uploadDirectory,
   orderFileDirectory,
   emailOutboxDirectory,
+  adminPassword,
 } = {}) {
   if (!database) {
     throw new TypeError("createApp richiede una connessione al database");
@@ -36,6 +38,12 @@ export function createApp({
   registerOrderRoutes(app, {
     database,
     uploadDirectory,
+    orderFileDirectory,
+    emailOutboxDirectory,
+  });
+  registerAdminRoutes(app, {
+    database,
+    adminPassword,
     orderFileDirectory,
     emailOutboxDirectory,
   });

@@ -6,27 +6,40 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 7 e conclusa.
+- Nessuna attivita. La fase 8 e conclusa.
 
 ## Da fare
 
-### Fase 8 - Accesso amministrativo e ordini
+### Fase 9 - Gestione catalogo e colori
 
-- [ ] Proteggere l'area amministrativa con password e sessione.
-- [ ] Creare login e logout.
-- [ ] Elencare e consultare richieste e relativi snapshot.
-- [ ] Modificare nome, cognome, righe, colori e quantita.
-- [ ] Eliminare richieste, file permanenti ed email simulate.
-- [ ] Verificare autorizzazione, errori e responsive.
+- [ ] Aggiungere navigazione amministrativa tra ordini e catalogo.
+- [ ] Creare, modificare, nascondere ed eliminare prodotti.
+- [ ] Caricare immagini e STL di catalogo in sicurezza.
+- [ ] Gestire prezzo, descrizione e specifiche.
+- [ ] Creare, modificare, ordinare e disattivare colori globali.
+- [ ] Conservare invariati gli snapshot degli ordini esistenti.
+- [ ] Verificare autorizzazione, file e responsive.
 
 ## Backlog
 
-- [ ] Gestione amministrativa di prodotti e colori.
 - [ ] Statistiche anonime senza cookie.
 - [ ] Animazioni pixel art legate alla stampa 3D.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 8 - Accesso amministrativo e ordini
+
+- [x] Configurata autenticazione con password e sessione in memoria.
+- [x] Aggiunti cookie HttpOnly, SameSite e scadenza.
+- [x] Limitati i tentativi di login falliti.
+- [x] Create API protette per elenco, dettaglio e download STL.
+- [x] Gestite modifica completa e aggiunta/rimozione righe.
+- [x] Ricalcolati snapshot, totale ed email dopo il salvataggio.
+- [x] Eliminati ordine, file ed email in modo coordinato.
+- [x] Creato pannello Control Room responsive.
+- [x] Verificati login, gestione e logout su desktop e mobile.
+- [x] Aggiornati test, guida tecnica ed esercizi.
 
 ### Fase 7 - Invio delle richieste
 

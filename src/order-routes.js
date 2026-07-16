@@ -37,7 +37,7 @@ function sendError(response, error) {
   });
 }
 
-function validatePersonName(value, fieldName) {
+export function validatePersonName(value, fieldName) {
   if (typeof value !== "string") {
     throw new OrderError("INVALID_CUSTOMER", `${fieldName} e obbligatorio.`);
   }
@@ -52,7 +52,7 @@ function validatePersonName(value, fieldName) {
   return normalized;
 }
 
-function validateQuantity(value) {
+export function validateQuantity(value) {
   if (!Number.isInteger(value) || value < 1 || value > 99) {
     throw new OrderError("INVALID_QUANTITY", "La quantita deve essere compresa tra 1 e 99.");
   }
@@ -91,7 +91,7 @@ function formatEuro(cents) {
   return `${(cents / 100).toFixed(2).replace(".", ",")} EUR`;
 }
 
-function buildEmail({ code, firstName, lastName, items, catalogTotalCents }) {
+export function buildEmail({ code, firstName, lastName, items, catalogTotalCents }) {
   const lines = [
     `Oggetto: Nuova richiesta ${code}`,
     "",

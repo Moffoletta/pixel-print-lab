@@ -930,3 +930,176 @@ La fase verifica:
 ## 22. Esito Della Fase 7
 
 Il percorso pubblico e ora completo fino alla registrazione della richiesta. Ordini, snapshot, file ed email simulate sono persistenti; la prossima fase introdurra accesso amministrativo e gestione delle richieste.
+
+## 23. Fase 8 - Accesso Amministrativo E Ordini
+
+### Area Separata
+
+Il pannello e disponibile su:
+
+```text
+http://localhost:3000/admin.html
+```
+
+HTML, CSS e JavaScript della pagina sono risorse statiche e possono essere scaricati da chi conosce l'indirizzo. Nessun dato amministrativo e pero incluso nella pagina: elenco, dettagli, file e operazioni sono esposti soltanto da API protette.
+
+Nascondere l'URL non sarebbe una misura di sicurezza. La protezione effettiva si trova sul server.
+
+### Configurazione Della Password
+
+La password viene letta da `ADMIN_PASSWORD`. Per lo sviluppo locale si crea un file `.env` non versionato:
+
+```text
+ADMIN_PASSWORD=una-password-personale-lunga
+```
+
+Se la variabile manca, il login restituisce HTTP `503` con un messaggio di configurazione. Non esistono password predefinite o credenziali scritte nel codice.
+
+`.env` e escluso da Git. `.env.example` documenta soltanto il nome della variabile e contiene un segnaposto.
+
+### Verifica Della Password
+
+Il server calcola SHA-256 sia della password ricevuta sia di quella configurata, ottenendo buffer della stessa lunghezza. Il confronto usa `crypto.timingSafeEqual`.
+
+Questo non trasforma la variabile d'ambiente in un archivio password: la password e gia fornita come segreto al processo. Il confronto a tempo costante riduce informazioni ricavabili dalla durata della verifica.
+
+### Limitazione Dei Tentativi
+
+Ogni indirizzo IP puo fallire al massimo cinque accessi in una finestra di 15 minuti. Ulteriori tentativi ricevono HTTP `429`. Un login riuscito azzera il contatore.
+
+Il limite vive in memoria ed e adatto al progetto locale. In un'applicazione distribuita dovrebbe essere condiviso tra processi e considerare correttamente proxy e bilanciatori.
+
+### Sessione
+
+Dopo il login il server genera 32 byte casuali e li invia in un cookie:
+
+- `HttpOnly`, quindi JavaScript non puo leggerlo;
+- `SameSite=Strict`, per limitarne l'invio da altri siti;
+- `Path=/`, per autorizzare tutte le API amministrative;
+- durata massima di otto ore;
+- `Secure` quando la richiesta avviene tramite HTTPS.
+
+Le sessioni sono conservate in memoria e scadono anche lato server. Il riavvio del processo le elimina, richiedendo un nuovo login. Il logout invalida il token e cancella il cookie.
+
+### Middleware Di Autorizzazione
+
+Ogni route sotto `/api/admin` che espone dati usa `requireAdmin`. Il middleware:
+
+1. elimina sessioni scadute;
+2. legge il cookie;
+3. verifica il token;
+4. rinnova la scadenza server;
+5. imposta `Cache-Control: no-store`;
+6. restituisce `401` se l'accesso non e valido.
+
+Scaricare direttamente un STL permanente senza cookie produce quindi `401` come qualsiasi altra API protetta.
+
+### API Amministrative
+
+Le operazioni disponibili sono:
+
+```text
+POST   /api/admin/login
+POST   /api/admin/logout
+GET    /api/admin/session
+GET    /api/admin/orders
+GET    /api/admin/orders/:id
+PUT    /api/admin/orders/:id
+DELETE /api/admin/orders/:id
+GET    /api/admin/orders/:orderId/items/:itemId/model
+```
+
+Non esistono API pubbliche per leggere ordini, nomi o file permanenti.
+
+### Elenco E Dettaglio
+
+L'elenco mostra codice, cliente, data, numero di righe e pezzi. Una query aggregata usa `COUNT` e `SUM`, mantenendo una sola riga per ordine.
+
+Il dettaglio restituisce snapshot completi. L'interfaccia presenta archivio a sinistra e editor a destra su desktop; su schermi stretti le sezioni diventano verticali.
+
+### Modifica Delle Righe
+
+Il pannello permette di:
+
+- cambiare nome e cognome;
+- cambiare prodotto nelle righe di catalogo;
+- cambiare colore e quantita;
+- aggiungere prodotti di catalogo;
+- rimuovere qualsiasi riga;
+- conservare file e link delle righe personali.
+
+La sorgente di un elemento personale e immutabile: sostituire fisicamente un STL o trasformare un file in link richiederebbe un nuovo flusso di upload e non viene simulato con dati incompleti.
+
+Il server rilegge prodotti e colori disponibili. Non considera affidabili select o input del pannello, nonostante l'utente sia autenticato.
+
+### Riscrittura Transazionale
+
+Durante un aggiornamento il server:
+
+1. valida cliente e righe;
+2. ricostruisce gli snapshot;
+3. ricalcola il totale;
+4. aggiorna la testata;
+5. elimina le vecchie righe;
+6. inserisce le nuove posizioni;
+7. completa tutto nella stessa transazione SQLite.
+
+Questa strategia rende semplici aggiunta, rimozione e riordinamento. Gli ID delle righe possono cambiare dopo il salvataggio e il browser ricarica il dettaglio aggiornato.
+
+L'email simulata viene riscritta con i dati correnti.
+
+### Rimozione Dei File
+
+Se una modifica elimina una riga STL, il file viene rimosso dopo il commit soltanto quando nessun'altra riga lo riferisce.
+
+Eliminando un intero ordine:
+
+- la foreign key cancella le righe;
+- vengono eliminati gli STL permanenti associati;
+- viene eliminata l'email simulata;
+- l'ordine scompare dall'archivio.
+
+L'operazione non usa uno stato o un cestino ed e definitiva. L'interfaccia richiede una conferma esplicita.
+
+### Interfaccia Control Room
+
+Il pannello conserva bordi netti, ombre a blocchi e tipografia monospaziata, ma usa un archivio scuro e un'area editor chiara per distinguere navigazione e lavoro.
+
+La pagina gestisce:
+
+- ripristino automatico di una sessione valida;
+- ritorno al login dopo `401`;
+- selezione della prima richiesta;
+- feedback di salvataggio ed errore;
+- stato vuoto;
+- layout a una colonna sotto i 900 px.
+
+### Limiti Attuali
+
+- Le sessioni non sopravvivono al riavvio.
+- Esiste un solo amministratore e una sola password.
+- Non esiste recupero password.
+- Gli ordini eliminati non sono recuperabili senza backup.
+- Prodotti e colori verranno gestiti nella fase successiva.
+- Prima della pubblicazione saranno necessari HTTPS e configurazione corretta del proxy.
+
+### Verifiche
+
+La fase verifica:
+
+- rifiuto delle API senza sessione;
+- password errata e login corretto;
+- attributi `HttpOnly` e `SameSite=Strict`;
+- controllo della sessione;
+- elenco e dettaglio;
+- protezione del download STL;
+- modifica di cliente, prodotti, colori e quantita;
+- aggiunta e rimozione di righe;
+- ricalcolo del totale e rigenerazione email;
+- eliminazione di ordine, file ed email;
+- invalidazione al logout;
+- flusso reale desktop e mobile.
+
+## 24. Esito Della Fase 8
+
+Le richieste possono ora essere consultate e gestite da un pannello protetto. La prossima fase estendera la stessa area amministrativa a prodotti, immagini, STL di catalogo e colori globali.
