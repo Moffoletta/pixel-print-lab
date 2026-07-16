@@ -6,18 +6,18 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 3 e conclusa.
+- Nessuna attivita. La fase 4 e conclusa.
 
 ## Da fare
 
-### Fase 4 - Configurazione e carrello
+### Fase 5 - Visualizzatore 3D
 
-- [ ] Mostrare i colori disponibili per ogni prodotto.
-- [ ] Permettere una quantita compresa tra 1 e 99.
-- [ ] Aggiungere e aggiornare prodotti nel carrello.
-- [ ] Calcolare totale per elemento e totale complessivo.
-- [ ] Costruire un riepilogo responsive e accessibile.
-- [ ] Testare regole e interazioni del carrello.
+- [ ] Aggiungere file STL dimostrativi ai prodotti iniziali.
+- [ ] Integrare Three.js e il caricamento STL.
+- [ ] Mostrare piano di stampa e modello centrato.
+- [ ] Aggiungere rotazione, zoom e ripristino visuale.
+- [ ] Caricare il visualizzatore soltanto quando richiesto.
+- [ ] Verificare accessibilita, errori e resa responsive.
 
 ## Backlog
 
@@ -25,7 +25,7 @@ Ultimo aggiornamento: 16 luglio 2026.
 - [ ] Richieste con nome, cognome e codice univoco.
 - [ ] Upload STL fino a 50 MB.
 - [ ] Link esterni da domini autorizzati.
-- [ ] Visualizzatore STL con piano di stampa.
+- [ ] Visualizzare nel viewer i file STL caricati dagli utenti.
 - [ ] Accesso amministratore con sessione.
 - [ ] Gestione di prodotti, colori e ordini.
 - [ ] Statistiche anonime senza cookie.
@@ -34,6 +34,18 @@ Ultimo aggiornamento: 16 luglio 2026.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 4 - Configurazione e carrello
+
+- [x] Mostrati i colori globali su ogni prodotto.
+- [x] Aggiunta quantita con limite da 1 a 99.
+- [x] Gestite aggiunta, unione, modifica e rimozione delle configurazioni.
+- [x] Calcolati totale di riga, totale complessivo e numero di pezzi.
+- [x] Salvato il carrello senza dati personali in `localStorage`.
+- [x] Riconciliato il carrello con prodotti e colori correnti.
+- [x] Creato un dialog responsive e accessibile per il riepilogo.
+- [x] Verificato il flusso completo in un browser reale.
+- [x] Aggiunti test, guida tecnica ed esercizi.
 
 ### Fase 3 - Database e API
 

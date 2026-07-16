@@ -341,3 +341,128 @@ La suite verifica:
 ## 14. Esito Della Fase 3
 
 Catalogo e colori hanno ora una sorgente dati persistente. Il browser costruisce le schede usando l'API e il server valida gli identificativi richiesti. Le operazioni restano in sola lettura: creazione e modifica entreranno nel pannello amministrativo.
+
+## 15. Fase 4 - Configurazione E Carrello
+
+### Obiettivo
+
+Ogni prodotto puo ora essere configurato scegliendo uno dei colori attivi e una quantita da 1 a 99. L'utente puo aggiungere la configurazione al carrello, modificarne la quantita, rimuoverla e vedere i totali.
+
+Il carrello riguarda per ora i prodotti del catalogo. I modelli personali verranno integrati in una fase successiva.
+
+### Separare Regole E Interfaccia
+
+`public/cart.js` contiene funzioni pure: ricevono dati, restituiscono nuovi dati e non modificano HTML, database o memoria del browser.
+
+Le operazioni principali sono:
+
+- `addCartItem` aggiunge o unisce una configurazione;
+- `updateCartQuantity` cambia una quantita;
+- `removeCartItem` elimina una riga;
+- `getCartItemCount` somma tutti i pezzi;
+- `calculateCartTotal` calcola il totale corrente;
+- `parseStoredCart` valida dati recuperati dal browser;
+- `reconcileCart` elimina prodotti o colori non piu disponibili.
+
+Separare queste regole rende i test semplici e impedisce che calcoli importanti dipendano dalla struttura grafica della pagina.
+
+### Modello Dei Dati Del Carrello
+
+Ogni elemento memorizza soltanto:
+
+```json
+{
+  "key": "1:2",
+  "productId": 1,
+  "colorId": 2,
+  "quantity": 3
+}
+```
+
+La chiave combina prodotto e colore. Aggiungere due volte lo stesso prodotto nello stesso colore aggiorna la quantita; scegliere un colore diverso crea una riga distinta.
+
+Nome e prezzo non vengono copiati nel carrello locale. Sono recuperati dalle API a ogni caricamento, evitando di mostrare a lungo un prezzo obsoleto. Quando verranno creati gli ordini, il server dovra comunque ricalcolare e validare tutto: i dati del browser non sono affidabili.
+
+### Limite Della Quantita
+
+HTML usa `min="1"` e `max="99"`, ma la stessa regola viene applicata anche nelle funzioni JavaScript. Il controllo grafico aiuta l'utente; la regola applicativa protegge il dato.
+
+Se una configurazione viene aggiunta piu volte, la somma viene limitata a 99. Quantita decimali, negative, uguali a zero o superiori al massimo vengono rifiutate.
+
+### Colori Globali
+
+Il browser richiede prodotti e colori in parallelo con `Promise.all`. Per ogni prodotto crea un gruppo di radio button con lo stesso `name`: il browser garantisce che si possa selezionare un solo colore alla volta.
+
+Il campione usa `hexValue` ricevuto dall'API. Il nome rimane sempre visibile, quindi la scelta non dipende soltanto dalla percezione del colore.
+
+### Map Per Le Ricerche
+
+Prodotti e colori vengono trasformati in `Map` indicizzate per ID:
+
+```text
+productId -> prodotto
+colorId   -> colore
+```
+
+Quando viene renderizzata una riga del carrello non e necessario scorrere ogni volta l'intero catalogo. La chiave permette di recuperare direttamente il record desiderato.
+
+### Totali In Centesimi
+
+Il totale di riga e:
+
+```text
+priceCents * quantity
+```
+
+Il totale complessivo e la somma delle righe. Tutti i calcoli rimangono interi; la conversione in euro avviene soltanto per la visualizzazione con `Intl.NumberFormat`.
+
+### Persistenza Locale
+
+Il carrello viene salvato in `localStorage` con la chiave `pixel-print-lab:cart:v1`. Sopravvive alla ricarica e alla chiusura del browser sullo stesso dispositivo.
+
+Non vengono salvati nome, cognome o altri dati personali. Il contenuto puo essere modificato manualmente dall'utente, quindi viene analizzato e validato prima dell'uso. JSON corrotto, forme errate e quantita non valide vengono ignorati.
+
+Dopo aver ricevuto il catalogo, `reconcileCart` rimuove riferimenti a prodotti nascosti o colori disattivati.
+
+### Dialog Del Carrello
+
+Il riepilogo usa l'elemento HTML nativo `dialog`. `showModal()`:
+
+- porta il focus dentro il carrello;
+- impedisce di interagire accidentalmente con la pagina sottostante;
+- consente la chiusura con `Esc`;
+- comunica al browser la natura modale del contenuto.
+
+Il pulsante nell'intestazione mostra il numero totale di pezzi e aggiorna anche la propria etichetta accessibile. Il dialog presenta righe modificabili, totale e stato vuoto. Non include ancora un pulsante di invio, perche la creazione delle richieste non e stata implementata.
+
+### Rendering Dichiarativo Semplice
+
+Ogni cambiamento del carrello richiama `renderCart`. La funzione svuota il riepilogo e lo ricostruisce a partire dallo stato corrente.
+
+Per il numero ridotto di righe previsto, questa soluzione e piu leggibile di un aggiornamento parziale complesso. L'interfaccia e una conseguenza dello stato, principio utile anche nei framework moderni.
+
+### Test
+
+I test aggiunti verificano:
+
+- unione di configurazioni uguali;
+- separazione dei colori;
+- limite massimo di 99;
+- modifica e rimozione;
+- conteggio dei pezzi e calcolo del totale;
+- recupero sicuro da `localStorage`;
+- rimozione dei riferimenti non piu disponibili;
+- presenza della struttura accessibile del dialog.
+
+### Collegamenti Con ServiceNow
+
+- Lo stato del carrello ricorda una collezione di record temporanei lato client.
+- Le funzioni pure separano Business Logic e presentazione.
+- Gli ID collegano record come reference field, anche se qui la relazione vive nel browser.
+- La doppia validazione richiama la distinzione tra Client Script e regole lato server.
+- `localStorage` e esclusivamente client-side e non equivale a una tabella ServiceNow.
+- Il rendering da stato mostra lo stesso principio con cui una UI aggiorna la vista dopo una modifica ai dati.
+
+## 16. Esito Della Fase 4
+
+Il catalogo e ora configurabile e il carrello funziona localmente. La pagina non crea ancora una richiesta persistente: prima verranno aggiunti visualizzatore 3D e gestione dei modelli personali.

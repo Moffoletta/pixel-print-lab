@@ -19,9 +19,9 @@
         <a href="#catalogo">Catalogo</a>
         <a href="#modello-personale">Il tuo modello</a>
       </nav>
-      <p class="cart-status" aria-label="Il carrello contiene zero elementi">
-        <span aria-hidden="true">[</span> Carrello 00 <span aria-hidden="true">]</span>
-      </p>
+      <button class="cart-status" id="cart-open" type="button" aria-haspopup="dialog" aria-controls="cart-dialog" aria-label="Apri il carrello, zero elementi" disabled>
+        <span class="cart-bracket" aria-hidden="true">[</span> Carrello <span id="cart-count">00</span> <span class="cart-bracket" aria-hidden="true">]</span>
+      </button>
     </header>
 
     <main id="contenuto">
@@ -75,6 +75,18 @@
                 <div><dt data-field="dimension-label"></dt><dd data-field="dimension-value"></dd></div>
                 <div><dt>Materiale</dt><dd data-field="material"></dd></div>
               </dl>
+              <form class="product-card__config" data-field="config-form">
+                <fieldset>
+                  <legend>Colore</legend>
+                  <div class="color-options" data-field="color-options"></div>
+                </fieldset>
+                <label class="quantity-field">
+                  <span>Quantita</span>
+                  <input data-field="quantity" type="number" min="1" max="99" value="1" inputmode="numeric" required>
+                </label>
+                <button class="add-button" type="submit">Aggiungi al carrello</button>
+                <p class="add-feedback" data-field="feedback" role="status"></p>
+              </form>
             </div>
           </article>
         </template>
@@ -95,8 +107,54 @@
 
     <footer class="site-footer">
       <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
-      <p>Progetto locale <span aria-hidden="true">[fase 03]</span></p>
+      <p>Progetto locale <span aria-hidden="true">[fase 04]</span></p>
     </footer>
+
+    <dialog class="cart-dialog" id="cart-dialog" aria-labelledby="cart-title">
+      <div class="cart-panel">
+        <header class="cart-panel__header">
+          <div>
+            <p class="section-number">Riepilogo</p>
+            <h2 id="cart-title">Il tuo carrello</h2>
+          </div>
+          <form method="dialog">
+            <button class="icon-button" type="submit" aria-label="Chiudi il carrello">X</button>
+          </form>
+        </header>
+
+        <p class="cart-empty" id="cart-empty">Il carrello e ancora vuoto.</p>
+        <div class="cart-items" id="cart-items" aria-live="polite"></div>
+
+        <footer class="cart-summary">
+          <dl>
+            <div><dt>Pezzi</dt><dd id="cart-summary-count">0</dd></div>
+            <div><dt>Totale</dt><dd id="cart-total">&euro; 0,00</dd></div>
+          </dl>
+          <p>L'invio della richiesta verra aggiunto in una fase successiva.</p>
+          <form method="dialog">
+            <button class="pixel-button" type="submit">Continua a scegliere</button>
+          </form>
+        </footer>
+      </div>
+    </dialog>
+
+    <template id="cart-item-template">
+      <article class="cart-item">
+        <div class="cart-item__heading">
+          <p data-field="cart-code"></p>
+          <h3 data-field="cart-name"></h3>
+          <p class="cart-item__color"><span data-field="cart-swatch" aria-hidden="true"></span><span data-field="cart-color"></span></p>
+        </div>
+        <p class="cart-item__unit" data-field="cart-unit-price"></p>
+        <label class="cart-item__quantity">
+          <span>Quantita</span>
+          <input data-field="cart-quantity" type="number" min="1" max="99" inputmode="numeric">
+        </label>
+        <p class="cart-item__total" data-field="cart-line-total"></p>
+        <button class="remove-button" data-field="cart-remove" type="button">Rimuovi</button>
+      </article>
+    </template>
+
     <script type="module" src="/app.js"></script>
   </body>
 </html>

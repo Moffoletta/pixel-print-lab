@@ -192,3 +192,64 @@ Aggiungi temporaneamente un quinto colore all'array `colors`, ricrea un database
 4. Cosa rende una query preparata preferibile alla concatenazione di stringhe?
 5. In quale punto un nome SQL viene convertito nel formato JavaScript?
 6. Perche il browser non riceve il campo `visible`?
+
+## Fase 4 - Configurazione E Carrello
+
+### 1. Segui Una Configurazione
+
+Scegli colore e quantita, aggiungi il prodotto e apri il carrello. Negli strumenti per sviluppatori osserva l'oggetto salvato in Application, Local Storage.
+
+Verifica che contenga ID e quantita, ma non nome o prezzo.
+
+### 2. Verifica La Chiave Composta
+
+Aggiungi due volte lo stesso prodotto nello stesso colore, poi aggiungilo in un colore diverso. Spiega perche il carrello mostra due righe e non tre.
+
+Obiettivo: comprendere una chiave costruita da piu valori.
+
+### 3. Prova I Limiti
+
+Inserisci `0`, `100`, un numero decimale e infine `99`. Osserva quali valori vengono accettati dal form. Leggi poi `validateSelection` e individua dove la stessa regola viene applicata in JavaScript.
+
+Concetto ServiceNow: la validazione client migliora l'esperienza, ma non sostituisce quella applicativa o server.
+
+### 4. Calcola Manualmente Il Totale
+
+Aggiungi due configurazioni con quantita diverse. Calcola su carta il totale in centesimi e confrontalo con `calculateCartTotal` e con il valore formattato in euro.
+
+### 5. Corrompi Il Dato Locale
+
+Negli strumenti per sviluppatori sostituisci temporaneamente il valore di `pixel-print-lab:cart:v1` con testo non JSON e ricarica. Il sito deve ignorarlo senza interrompersi.
+
+Al termine elimina la chiave o ricrea il carrello.
+
+### 6. Disattiva Un Colore
+
+Imposta temporaneamente `active = 0` per un colore presente nel carrello, ricarica il catalogo e osserva la riconciliazione. Ripristina poi il database.
+
+Obiettivo: comprendere perche i riferimenti locali devono essere confrontati con i record correnti.
+
+### 7. Usa Solo La Tastiera
+
+Senza mouse:
+
+1. raggiungi una scheda con `Tab`;
+2. cambia colore con i tasti freccia;
+3. imposta la quantita;
+4. aggiungi il prodotto;
+5. apri e chiudi il carrello con `Invio` ed `Esc`.
+
+Annota eventuali punti in cui il focus non e evidente.
+
+### 8. Aggiungi Un Test
+
+In `test/cart.test.js`, scrivi un test che provi ad aggiungere quantita zero e verifichi un `RangeError`. Esegui la suite, poi conserva o annulla l'esercizio.
+
+## Autovalutazione Della Fase 4
+
+1. Perche il carrello non salva il prezzo?
+2. Qual e la differenza tra numero di righe e numero di pezzi?
+3. A cosa serve `reconcileCart`?
+4. Perche `renderCart` ricostruisce l'intero riepilogo?
+5. Quali dati vengono salvati in `localStorage`?
+6. Perche la richiesta finale dovra essere validata nuovamente dal server?

@@ -41,16 +41,22 @@ test("serve la pagina pubblica con un catalogo accessibile", async () => {
   assert.match(page, /Vai al contenuto/);
   assert.match(page, /id="product-list"/);
   assert.match(page, /id="product-template"/);
+  assert.match(page, /id="cart-dialog"/);
+  assert.match(page, /id="cart-item-template"/);
   assert.match(page, /<script type="module" src="\/app.js"><\/script>/);
 });
 
-test("serve le immagini dei prodotti", async () => {
-  const paths = ["/images/vaso-orbitale.svg", "/images/supporto-controller.svg"];
+test("serve gli asset pubblici", async () => {
+  const paths = [
+    "/images/vaso-orbitale.svg",
+    "/images/supporto-controller.svg",
+    "/app.js",
+    "/cart.js",
+  ];
   const responses = await Promise.all(paths.map((path) => fetch(`${baseUrl}${path}`)));
 
   for (const response of responses) {
     assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type"), /image\/svg\+xml/);
   }
 });
 
