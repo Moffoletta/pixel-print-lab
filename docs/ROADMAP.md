@@ -6,18 +6,19 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 4 e conclusa.
+- Nessuna attivita. La fase 5 e conclusa.
 
 ## Da fare
 
-### Fase 5 - Visualizzatore 3D
+### Fase 6 - Modelli personali
 
-- [ ] Aggiungere file STL dimostrativi ai prodotti iniziali.
-- [ ] Integrare Three.js e il caricamento STL.
-- [ ] Mostrare piano di stampa e modello centrato.
-- [ ] Aggiungere rotazione, zoom e ripristino visuale.
-- [ ] Caricare il visualizzatore soltanto quando richiesto.
-- [ ] Verificare accessibilita, errori e resa responsive.
+- [ ] Creare il form alternativo per file STL o link esterno.
+- [ ] Validare file STL fino a 50 MB lato client e server.
+- [ ] Limitare i link ai domini autorizzati.
+- [ ] Mostrare nel viewer il file caricato.
+- [ ] Aggiungere colore e quantita al modello personale.
+- [ ] Integrare i modelli personali nel carrello senza prezzo.
+- [ ] Gestire file temporanei e relativi errori.
 
 ## Backlog
 
@@ -34,6 +35,18 @@ Ultimo aggiornamento: 16 luglio 2026.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 5 - Visualizzatore 3D
+
+- [x] Aggiunti due file STL dimostrativi.
+- [x] Associati i file ai prodotti tramite seed e migrazione.
+- [x] Integrati Three.js, STLLoader e OrbitControls.
+- [x] Centrati i modelli su un piano di stampa proporzionato.
+- [x] Aggiunti rotazione, zoom e ripristino visuale.
+- [x] Caricato il viewer soltanto dopo la richiesta dell'utente.
+- [x] Gestiti caricamento, errore, ridimensionamento e rilascio risorse.
+- [x] Verificati entrambi i modelli su desktop e mobile.
+- [x] Aggiornati test, guida tecnica ed esercizi.
 
 ### Fase 4 - Configurazione e carrello
 

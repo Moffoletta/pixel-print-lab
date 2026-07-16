@@ -43,6 +43,8 @@ test("serve la pagina pubblica con un catalogo accessibile", async () => {
   assert.match(page, /id="product-template"/);
   assert.match(page, /id="cart-dialog"/);
   assert.match(page, /id="cart-item-template"/);
+  assert.match(page, /id="viewer-dialog"/);
+  assert.match(page, /type="importmap"/);
   assert.match(page, /<script type="module" src="\/app.js"><\/script>/);
 });
 
@@ -52,6 +54,11 @@ test("serve gli asset pubblici", async () => {
     "/images/supporto-controller.svg",
     "/app.js",
     "/cart.js",
+    "/viewer.js",
+    "/models/vaso-orbitale.stl",
+    "/models/supporto-controller.stl",
+    "/vendor/three/build/three.module.js",
+    "/vendor/three/examples/jsm/loaders/STLLoader.js",
   ];
   const responses = await Promise.all(paths.map((path) => fetch(`${baseUrl}${path}`)));
 
@@ -68,6 +75,7 @@ test("espone i prodotti visibili ordinati", async () => {
   assert.equal(body.count, 2);
   assert.equal(body.data[0].slug, "vaso-orbitale");
   assert.equal(body.data[0].priceCents, 1200);
+  assert.equal(body.data[0].modelUrl, "/models/vaso-orbitale.stl");
   assert.deepEqual(body.data[0].dimension, { label: "Altezza", value: "14 cm" });
   assert.equal(body.data[1].slug, "supporto-controller");
 });
@@ -105,4 +113,5 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 2);
 });

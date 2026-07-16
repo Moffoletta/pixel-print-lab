@@ -30,6 +30,7 @@ let colors = [];
 let productsById = new Map();
 let colorsById = new Map();
 let cart = readCart();
+let viewerModulePromise;
 
 function readCart() {
   try {
@@ -79,6 +80,7 @@ function createProductCard(product, index) {
   const colorOptions = card.querySelector('[data-field="color-options"]');
   const quantityInput = card.querySelector('[data-field="quantity"]');
   const feedback = card.querySelector('[data-field="feedback"]');
+  const viewModelButton = card.querySelector('[data-field="view-model"]');
 
   card.dataset.product = product.slug;
   if (index % 2 === 1) {
@@ -100,6 +102,27 @@ function createProductCard(product, index) {
   colors.forEach((color, colorIndex) => {
     colorOptions.append(createColorOption(color, product.id, colorIndex === 0));
   });
+
+  if (!product.modelUrl) {
+    viewModelButton.disabled = true;
+    viewModelButton.textContent = "3D non disponibile";
+  } else {
+    viewModelButton.addEventListener("click", async () => {
+      viewModelButton.disabled = true;
+      viewModelButton.textContent = "Caricamento...";
+      try {
+        viewerModulePromise ??= import("./viewer.js");
+        const { openModelViewer } = await viewerModulePromise;
+        await openModelViewer(product);
+      } catch (error) {
+        console.error(error);
+        feedback.textContent = "Impossibile aprire il modello 3D.";
+      } finally {
+        viewModelButton.disabled = false;
+        viewModelButton.textContent = "Apri 3D";
+      }
+    });
+  }
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();

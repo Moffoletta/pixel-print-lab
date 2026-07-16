@@ -466,3 +466,122 @@ I test aggiunti verificano:
 ## 16. Esito Della Fase 4
 
 Il catalogo e ora configurabile e il carrello funziona localmente. La pagina non crea ancora una richiesta persistente: prima verranno aggiunti visualizzatore 3D e gestione dei modelli personali.
+
+## 17. Fase 5 - Visualizzatore 3D
+
+### Obiettivo
+
+I prodotti dimostrativi dispongono ora di un file STL apribile direttamente dalla scheda. Il visualizzatore mostra il modello su un piano di stampa e permette rotazione, zoom e ripristino della visuale.
+
+Il colore del materiale 3D rimane arancione e non cambia con il colore scelto per l'ordine, come stabilito nei requisiti.
+
+### File STL Dimostrativi
+
+I file in `public/models` sono STL ASCII a basso numero di triangoli. Un file STL descrive la superficie di un oggetto come una sequenza di triangoli; non contiene normalmente colore, materiale o unita di misura affidabili.
+
+I due esempi sono volutamente geometrici:
+
+- `vaso-orbitale.stl` e un tronco di piramide;
+- `supporto-controller.stl` e un supporto inclinato.
+
+Questi asset servono a verificare il flusso. In futuro saranno sostituiti dai file caricati dal pannello amministrativo.
+
+### Aggiornamento Dei Dati
+
+La colonna `model_url` esisteva gia nella tabella `products`. La migrazione 2 assegna i file STL ai due record presenti nel database locale.
+
+Il seed include gli stessi percorsi per le nuove installazioni. Sono necessari entrambi i meccanismi:
+
+- la migrazione aggiorna database gia creati;
+- il seed crea correttamente database nuovi.
+
+L'API espone il percorso come `modelUrl`.
+
+### Three.js
+
+Three.js gestisce scena, camera, luci e rendering WebGL. Il progetto usa inoltre:
+
+- `STLLoader` per trasformare un file STL in geometria;
+- `OrbitControls` per rotazione e zoom tramite mouse o touch.
+
+Express pubblica soltanto le directory necessarie del pacchetto attraverso `/vendor/three`. Una import map nell'HTML associa i nomi dei moduli ai relativi URL locali.
+
+In questo modo il progetto continua a funzionare senza CDN e senza introdurre un bundler nella fase didattica corrente.
+
+### Caricamento Lazy
+
+`public/app.js` non importa subito il visualizzatore. Al primo clic su "Apri 3D" esegue:
+
+```js
+import("./viewer.js")
+```
+
+Soltanto in quel momento il browser scarica viewer, Three.js, controlli e loader. Il catalogo iniziale rimane quindi leggero per chi non usa l'anteprima.
+
+La Promise del modulo viene conservata e riutilizzata. Aprire un secondo prodotto non scarica nuovamente la libreria.
+
+### Preparazione Della Geometria
+
+STL usa comunemente l'asse Z come verticale, mentre la scena usa Y. Dopo il caricamento la geometria viene:
+
+1. ruotata di 90 gradi;
+2. misurata con una bounding box;
+3. centrata sugli assi orizzontali;
+4. spostata affinche il punto piu basso tocchi il piano;
+5. dotata di normali aggiornate per l'illuminazione.
+
+Questo procedimento non dipende dalle dimensioni specifiche dei due esempi e verra riutilizzato per file futuri.
+
+### Camera E Piano Di Stampa
+
+La dimensione massima del modello determina:
+
+- estensione della griglia;
+- posizione iniziale della camera;
+- distanza minima e massima dello zoom;
+- piani di clipping vicino e lontano.
+
+Il viewer puo quindi inquadrare oggetti di scale differenti senza usare coordinate fisse. Il pulsante "Ripristina visuale" copia nuovamente posizione e punto osservato calcolati all'apertura.
+
+### Luci E Materiale
+
+La scena usa una luce emisferica, una luce principale bianca e una luce secondaria blu. Il materiale arancione ha `flatShading`, che rende visibili le facce e mantiene il carattere geometrico dell'interfaccia.
+
+Il renderer non usa antialiasing e il canvas applica `image-rendering: pixelated`, scelte coerenti con il linguaggio visivo del sito.
+
+### Ciclo Di Rendering
+
+WebGL deve ridisegnare la scena mentre i controlli si muovono. `setAnimationLoop` viene avviato quando il dialog si apre e fermato alla chiusura.
+
+Non lasciare il loop attivo in background riduce il lavoro di CPU e GPU. `ResizeObserver` aggiorna dimensioni del renderer e rapporto della camera quando cambia lo spazio disponibile.
+
+Quando viene sostituito un modello, geometria e materiale precedenti vengono rimossi e liberati con `dispose`.
+
+### Stati Ed Errori
+
+Durante il caricamento il viewer mostra un messaggio e una barra animata a strati. Il reset resta disabilitato finche la geometria non e pronta.
+
+Se manca `modelUrl` oppure la richiesta STL fallisce, il dialog mostra un errore leggibile senza interrompere il resto della pagina. Un contatore interno impedisce che un caricamento precedente sovrascriva un modello aperto successivamente.
+
+### Accessibilita E Responsive
+
+Il viewer usa un secondo `dialog` nativo con titolo associato. L'area WebGL ha un'etichetta che include il nome del prodotto, mentre caricamento ed errore sono annunciati tramite `role="status"`.
+
+I controlli testuali spiegano trascinamento e zoom. Su schermi stretti il dialog usa quasi tutta la viewport, riduce gli spazi e porta il pulsante di reset su una riga separata.
+
+### Verifiche
+
+La fase verifica automaticamente e in browser reale che:
+
+- import map, viewer, STL e moduli Three.js siano serviti;
+- l'API restituisca `modelUrl`;
+- la seconda migrazione venga registrata;
+- Three.js non venga scaricato prima del clic;
+- entrambi i modelli aprano un canvas WebGL;
+- caricamento termini senza stato di errore;
+- reset e sostituzione del modello siano disponibili;
+- il dialog sia leggibile su desktop e mobile.
+
+## 18. Esito Della Fase 5
+
+Il catalogo offre ora anteprime 3D interattive caricate su richiesta. Lo stesso viewer e pronto per mostrare i file STL personali che verranno introdotti nella fase successiva.

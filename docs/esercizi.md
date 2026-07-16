@@ -253,3 +253,59 @@ In `test/cart.test.js`, scrivi un test che provi ad aggiungere quantita zero e v
 4. Perche `renderCart` ricostruisce l'intero riepilogo?
 5. Quali dati vengono salvati in `localStorage`?
 6. Perche la richiesta finale dovra essere validata nuovamente dal server?
+
+## Fase 5 - Visualizzatore 3D
+
+### 1. Osserva Il Caricamento Lazy
+
+Apri gli strumenti per sviluppatori sulla scheda Network e ricarica la pagina. Cerca `three` e `viewer.js`: non devono essere presenti. Premi "Apri 3D" e verifica quali moduli vengono richiesti.
+
+Obiettivo: distinguere risorse iniziali e risorse caricate su richiesta.
+
+### 2. Esplora Un File STL
+
+Apri `public/models/vaso-orbitale.stl` e individua:
+
+- nome del solido;
+- una normale;
+- i tre vertici di un triangolo;
+- inizio e fine di una faccia.
+
+Conta quante volte compare `facet normal` e confronta il risultato con la complessita visiva del modello.
+
+### 3. Prova I Controlli
+
+Ruota il modello, esegui zoom e premi "Ripristina visuale". Verifica anche la chiusura con `Esc` e il comportamento su uno schermo simulato da 375 px.
+
+### 4. Cambia Il Materiale
+
+In `public/viewer.js`, modifica temporaneamente il colore di `MeshStandardMaterial`. Prova anche `roughness` con valori vicini a 0 e 1, osserva le differenze e poi ripristina i valori originali.
+
+### 5. Nascondi Una Luce
+
+Commenta temporaneamente l'aggiunta della luce secondaria blu. Confronta ombre e leggibilita delle facce, quindi ripristina il codice.
+
+Obiettivo: capire che geometria e illuminazione sono responsabilita separate.
+
+### 6. Segui La Normalizzazione
+
+Inserisci breakpoint in `placeModel` dopo rotazione, prima traslazione e dopo traslazione. Osserva `boundingBox.min`, `boundingBox.max` e `size`.
+
+Spiega perche il valore minimo dell'asse verticale deve diventare zero.
+
+### 7. Simula Un Errore STL
+
+Modifica temporaneamente un `modelUrl` nel database con un percorso inesistente. Apri il viewer, verifica lo stato di errore e ripristina il dato.
+
+### 8. Controlla Le Risorse
+
+Apri e chiudi piu volte entrambi i modelli. Nella scheda Network verifica che Three.js venga scaricato una sola volta e che il browser possa riutilizzare le risorse gia ottenute.
+
+## Autovalutazione Della Fase 5
+
+1. Quali informazioni contiene un STL?
+2. Perche il modello viene ruotato dopo il caricamento?
+3. Come viene scelta la distanza iniziale della camera?
+4. A cosa serve `ResizeObserver`?
+5. Perche geometria e materiale vengono eliminati con `dispose`?
+6. In quale momento viene importato `viewer.js`?

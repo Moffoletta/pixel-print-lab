@@ -44,6 +44,19 @@ const migrations = [
       CREATE INDEX colors_active_sort_idx ON colors (active, sort_order, id);
     `,
   },
+  {
+    version: 2,
+    name: "add_demo_model_urls",
+    sql: `
+      UPDATE products
+      SET model_url = '/models/vaso-orbitale.stl', updated_at = CURRENT_TIMESTAMP
+      WHERE slug = 'vaso-orbitale' AND model_url IS NULL;
+
+      UPDATE products
+      SET model_url = '/models/supporto-controller.stl', updated_at = CURRENT_TIMESTAMP
+      WHERE slug = 'supporto-controller' AND model_url IS NULL;
+    `,
+  },
 ];
 
 const products = [
@@ -59,6 +72,7 @@ const products = [
     dimensionLabel: "Altezza",
     dimensionValue: "14 cm",
     material: "PLA",
+    modelUrl: "/models/vaso-orbitale.stl",
     sortOrder: 10,
   },
   {
@@ -73,6 +87,7 @@ const products = [
     dimensionLabel: "Larghezza",
     dimensionValue: "9 cm",
     material: "PLA",
+    modelUrl: "/models/supporto-controller.stl",
     sortOrder: 20,
   },
 ];
@@ -124,10 +139,10 @@ export function seedDatabase(database) {
   const insertProduct = database.prepare(`
     INSERT INTO products (
       code, slug, name, category, description, price_cents, image_url, image_alt,
-      dimension_label, dimension_value, material, sort_order
+      dimension_label, dimension_value, material, model_url, sort_order
     ) VALUES (
       @code, @slug, @name, @category, @description, @priceCents, @imageUrl, @imageAlt,
-      @dimensionLabel, @dimensionValue, @material, @sortOrder
+      @dimensionLabel, @dimensionValue, @material, @modelUrl, @sortOrder
     )
     ON CONFLICT (slug) DO NOTHING
   `);
