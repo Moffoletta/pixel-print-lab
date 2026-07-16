@@ -611,7 +611,7 @@ Completa una richiesta e verifica che resti pubblica. Eliminala dal pannello e c
 
 ### 7. Prova Il Responsive
 
-Confronta la pagina a 1051, 1050, 861 e 860 px. Il tracking deve restare leggibile e precedere sempre il catalogo su mobile.
+Confronta la pagina sopra e sotto 860 px. Il tracking deve restare leggibile sotto il catalogo e il pulsante nella hero deve raggiungerlo direttamente.
 
 ### 8. Riduci Le Animazioni
 

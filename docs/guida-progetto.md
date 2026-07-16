@@ -1290,9 +1290,9 @@ Separare lo stato dalla modifica completa evita di riscrivere elementi, snapshot
 
 ### Interfaccia Pubblica
 
-La pagina mostra una colonna con codice completo e descrizione testuale dello stato. `in_lavorazione` aggiunge una piccola stampante a blocchi decorativa; il testo resta sufficiente anche senza colore o animazione.
+La pagina mostra sotto il catalogo una sezione con codice completo e descrizione testuale dello stato. `in_lavorazione` aggiunge una piccola stampante a blocchi decorativa; il testo resta sufficiente anche senza colore o animazione.
 
-La colonna precede il catalogo nel DOM. Sotto 860 px le due colonne diventano sezioni verticali nello stesso ordine. Tra 861 e 1050 px i prodotti passano a una colonna per mantenere una larghezza leggibile.
+La hero contiene un pulsante diretto a `#stato-richieste`. Su desktop l'elenco usa piu colonne; sotto 860 px passa a una colonna mantenendo il tracking dopo i prodotti.
 
 `prefers-reduced-motion` disattiva le animazioni non essenziali. Un live region separato annuncia gli aggiornamenti senza rendere parlante l'intero elenco.
 

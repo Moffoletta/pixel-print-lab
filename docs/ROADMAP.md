@@ -30,8 +30,8 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Esposta un'API pubblica con i soli campi `code` e `status`.
 - [x] Ordinate le richieste dalla piu recente alla piu vecchia.
 - [x] Mantenute visibili le richieste completate fino alla cancellazione manuale.
-- [x] Creata colonna pubblica con animazione pixel art per `in lavorazione`.
-- [x] Posizionato il tracking prima del catalogo su mobile.
+- [x] Creata sezione pubblica con animazione pixel art per `in lavorazione`.
+- [x] Posizionato il tracking sotto il catalogo e collegato dalla hero.
 - [x] Aggiunti polling controllato, aggiornamento dopo l'invio e supporto reduced motion.
 - [x] Verificati privacy, autorizzazione, accessibilita, responsive e migrazione.
 - [x] Aggiornati test, guida, esercizi e architettura.

@@ -236,6 +236,19 @@ h1 em {
   box-shadow: 6px 6px 0 var(--ink);
 }
 
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pixel-button--secondary {
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--blue);
+}
+
 .print-scene {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -370,9 +383,9 @@ h1 em {
 
 .catalog-layout {
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 2.5rem;
+  gap: 4rem;
 }
 
 .catalog-content {
@@ -380,8 +393,7 @@ h1 em {
 }
 
 .request-tracker {
-  position: sticky;
-  top: 1rem;
+  position: static;
   padding: 1.25rem;
   color: var(--ink);
   background: var(--paper);
@@ -416,10 +428,12 @@ h1 em {
 }
 
 .request-list {
-  max-height: 32rem;
+  max-height: 24rem;
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 1.5rem;
   overflow-y: auto;
   list-style: none;
 }
@@ -1598,6 +1612,7 @@ h1 em {
 
   .request-list {
     max-height: 18rem;
+    grid-template-columns: 1fr;
   }
 
   .section-heading {
@@ -1605,12 +1620,6 @@ h1 em {
   }
 
   .custom-model {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1050px) and (min-width: 861px) {
-  .product-grid {
     grid-template-columns: 1fr;
   }
 }

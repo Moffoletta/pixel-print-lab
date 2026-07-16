@@ -39,7 +39,10 @@
           <p class="kicker"><span aria-hidden="true"></span> Stampante pronta</p>
           <h1 id="titolo-principale">Idee reali,<br><em>strato dopo strato.</em></h1>
           <p class="hero__intro">Scegli un oggetto dal laboratorio oppure porta il tuo file. Io penso alla stampa, tu scegli colore e quantita.</p>
-          <a class="pixel-button" href="#catalogo">Esplora i modelli <span aria-hidden="true">↓</span></a>
+          <div class="hero__actions">
+            <a class="pixel-button" href="#catalogo">Esplora i modelli <span aria-hidden="true">&darr;</span></a>
+            <a class="pixel-button pixel-button--secondary" href="#stato-richieste">Stato richieste <span aria-hidden="true">&darr;</span></a>
+          </div>
         </div>
 
         <div class="print-scene" aria-label="Illustrazione pixel art di una stampante 3D in funzione" role="img">
@@ -56,19 +59,10 @@
 
       <section class="catalog" id="catalogo" aria-labelledby="titolo-catalogo">
         <div class="catalog-layout">
-          <aside class="request-tracker" id="stato-richieste" aria-labelledby="tracking-title">
-            <p class="section-number">01 / Coda</p>
-            <h2 id="tracking-title">Stato richieste</h2>
-            <p class="request-tracker__intro">Codici pubblici e avanzamento, senza dati personali.</p>
-            <p class="request-tracker__status" id="tracking-status" role="status">Caricamento richieste...</p>
-            <p class="visually-hidden" id="tracking-announcement" aria-live="polite"></p>
-            <ol class="request-list" id="request-list"></ol>
-          </aside>
-
           <div class="catalog-content">
             <header class="section-heading">
               <div>
-                <p class="section-number">02 / Catalogo</p>
+                <p class="section-number">01 / Catalogo</p>
                 <h2 id="titolo-catalogo">Scegli la prossima stampa</h2>
               </div>
               <p>Due modelli di esempio. Il catalogo definitivo verra gestito dal pannello amministrativo.</p>
@@ -111,6 +105,15 @@
               </article>
             </template>
           </div>
+
+          <aside class="request-tracker" id="stato-richieste" aria-labelledby="tracking-title">
+            <p class="section-number">02 / Coda</p>
+            <h2 id="tracking-title">Stato richieste</h2>
+            <p class="request-tracker__intro">Codici pubblici e avanzamento, senza dati personali.</p>
+            <p class="request-tracker__status" id="tracking-status" role="status">Caricamento richieste...</p>
+            <p class="visually-hidden" id="tracking-announcement" aria-live="polite"></p>
+            <ol class="request-list" id="request-list"></ol>
+          </aside>
         </div>
 
         <template id="request-template">
