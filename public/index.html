@@ -101,21 +101,61 @@
       </section>
 
       <section class="custom-model" id="modello-personale" aria-labelledby="titolo-modello-personale">
-        <div class="custom-model__icon" aria-hidden="true">
-          <span>.STL</span>
+        <div class="custom-model__intro">
+          <div class="custom-model__icon" aria-hidden="true">
+            <span>.STL</span>
+          </div>
+          <div>
+            <p class="section-number">02 / Fuori catalogo</p>
+            <h2 id="titolo-modello-personale">Hai gia un modello?</h2>
+            <p>Carica un file STL fino a 50 MB oppure indica un link da uno dei siti supportati.</p>
+          </div>
         </div>
-        <div>
-          <p class="section-number">02 / Fuori catalogo</p>
-          <h2 id="titolo-modello-personale">Hai gia un modello?</h2>
-          <p>Potrai caricare un file STL fino a 50 MB oppure indicare un link da Printables, Thingiverse, MakerWorld o Cults3D.</p>
-        </div>
-        <p class="custom-model__status">Funzione in arrivo</p>
+
+        <form class="custom-form" id="custom-model-form">
+          <fieldset class="source-selector">
+            <legend>Sorgente del modello</legend>
+            <label><input type="radio" name="custom-source" value="file" checked> File STL</label>
+            <label><input type="radio" name="custom-source" value="link"> Link esterno</label>
+          </fieldset>
+
+          <div class="custom-source-panel" id="custom-file-panel">
+            <label class="file-field" for="custom-file">
+              <span class="file-field__title">Seleziona il file</span>
+              <span class="file-field__value" id="custom-file-name">Nessun file selezionato</span>
+              <input id="custom-file" name="model" type="file" accept=".stl,model/stl">
+            </label>
+            <p class="field-hint">Solo `.stl`, massimo 50 MB. Il file temporaneo scade dopo 24 ore.</p>
+            <button class="preview-file" id="custom-preview" type="button" disabled>Visualizza STL</button>
+          </div>
+
+          <div class="custom-source-panel" id="custom-link-panel" hidden>
+            <label class="link-field" for="custom-link">
+              <span>Link al modello</span>
+              <input id="custom-link" name="url" type="url" inputmode="url" placeholder="https://www.printables.com/model/...">
+            </label>
+            <p class="field-hint">Sono accettati Printables, Thingiverse, MakerWorld e Cults3D. Il link si aprira in una nuova pagina.</p>
+          </div>
+
+          <fieldset class="custom-colors">
+            <legend>Colore</legend>
+            <div class="color-options" id="custom-color-options"></div>
+          </fieldset>
+
+          <label class="quantity-field custom-quantity" for="custom-quantity">
+            <span>Quantita</span>
+            <input id="custom-quantity" type="number" min="1" max="99" value="1" inputmode="numeric" required>
+          </label>
+
+          <button class="add-button custom-submit" id="custom-submit" type="submit" disabled>Aggiungi richiesta al carrello</button>
+          <p class="custom-feedback" id="custom-feedback" role="status"></p>
+        </form>
       </section>
     </main>
 
     <footer class="site-footer">
       <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
-      <p>Progetto locale <span aria-hidden="true">[fase 05]</span></p>
+      <p>Progetto locale <span aria-hidden="true">[fase 06]</span></p>
     </footer>
 
     <dialog class="cart-dialog" id="cart-dialog" aria-labelledby="cart-title">
@@ -136,7 +176,7 @@
         <footer class="cart-summary">
           <dl>
             <div><dt>Pezzi</dt><dd id="cart-summary-count">0</dd></div>
-            <div><dt>Totale</dt><dd id="cart-total">&euro; 0,00</dd></div>
+            <div><dt>Totale catalogo</dt><dd id="cart-total">&euro; 0,00</dd></div>
           </dl>
           <p>L'invio della richiesta verra aggiunto in una fase successiva.</p>
           <form method="dialog">
@@ -159,7 +199,11 @@
           <input data-field="cart-quantity" type="number" min="1" max="99" inputmode="numeric">
         </label>
         <p class="cart-item__total" data-field="cart-line-total"></p>
-        <button class="remove-button" data-field="cart-remove" type="button">Rimuovi</button>
+        <div class="cart-item__actions">
+          <button class="cart-action" data-field="cart-view" type="button" hidden>Apri 3D</button>
+          <a class="cart-action" data-field="cart-link" target="_blank" rel="noopener noreferrer" hidden>Apri link</a>
+          <button class="remove-button" data-field="cart-remove" type="button">Rimuovi</button>
+        </div>
       </article>
     </template>
 

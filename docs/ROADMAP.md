@@ -6,35 +6,43 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 5 e conclusa.
+- Nessuna attivita. La fase 6 e conclusa.
 
 ## Da fare
 
-### Fase 6 - Modelli personali
+### Fase 7 - Invio delle richieste
 
-- [ ] Creare il form alternativo per file STL o link esterno.
-- [ ] Validare file STL fino a 50 MB lato client e server.
-- [ ] Limitare i link ai domini autorizzati.
-- [ ] Mostrare nel viewer il file caricato.
-- [ ] Aggiungere colore e quantita al modello personale.
-- [ ] Integrare i modelli personali nel carrello senza prezzo.
-- [ ] Gestire file temporanei e relativi errori.
+- [ ] Creare tabelle per richieste ed elementi con dati storici.
+- [ ] Mostrare il riepilogo finale e raccogliere nome e cognome.
+- [ ] Validare nuovamente catalogo, colori, quantita, link e upload.
+- [ ] Rendere permanenti gli STL inclusi nella richiesta.
+- [ ] Generare un codice univoco di conferma.
+- [ ] Simulare l'email con tutti i dettagli.
+- [ ] Confermare l'invio e svuotare il carrello.
 
 ## Backlog
 
-- [ ] Integrare i modelli personali nel carrello.
-- [ ] Richieste con nome, cognome e codice univoco.
-- [ ] Upload STL fino a 50 MB.
-- [ ] Link esterni da domini autorizzati.
-- [ ] Visualizzare nel viewer i file STL caricati dagli utenti.
 - [ ] Accesso amministratore con sessione.
 - [ ] Gestione di prodotti, colori e ordini.
 - [ ] Statistiche anonime senza cookie.
-- [ ] Email di notifica simulate.
 - [ ] Animazioni pixel art legate alla stampa 3D.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 6 - Modelli personali
+
+- [x] Creato il form alternativo per STL o link esterno.
+- [x] Aggiunta anteprima locale prima dell'upload.
+- [x] Validati estensione, contenuto ASCII/binario e limite di 50 MB.
+- [x] Salvati gli upload con UUID e scadenza di 24 ore.
+- [x] Limitati i link a quattro domini HTTPS autorizzati.
+- [x] Integrati colore e quantita per i modelli personali.
+- [x] Esteso il carrello mantenendo il formato precedente.
+- [x] Esclusi i modelli personali dal totale economico.
+- [x] Gestite verifica, scadenza e cancellazione dei temporanei.
+- [x] Verificati file e link su desktop e mobile.
+- [x] Aggiornati test, guida tecnica ed esercizi.
 
 ### Fase 5 - Visualizzatore 3D
 

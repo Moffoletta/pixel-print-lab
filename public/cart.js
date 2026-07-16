@@ -1,4 +1,5 @@
 export const MAX_QUANTITY = 99;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isPositiveInteger(value) {
   return Number.isInteger(value) && value > 0;
@@ -6,6 +7,10 @@ function isPositiveInteger(value) {
 
 function createKey(productId, colorId) {
   return `${productId}:${colorId}`;
+}
+
+function createCustomKey(id, colorId) {
+  return `custom:${id}:${colorId}`;
 }
 
 function validateSelection({ productId, colorId, quantity }) {
@@ -23,7 +28,7 @@ export function addCartItem(cart, selection) {
   const existingItem = cart.find((item) => item.key === key);
 
   if (!existingItem) {
-    return [...cart, { key, ...selection }];
+    return [...cart, { type: "catalog", key, ...selection }];
   }
 
   return cart.map((item) =>
@@ -31,6 +36,45 @@ export function addCartItem(cart, selection) {
       ? { ...item, quantity: Math.min(item.quantity + selection.quantity, MAX_QUANTITY) }
       : item,
   );
+}
+
+export function addCustomCartItem(cart, selection) {
+  const { id, sourceType, name, colorId, quantity } = selection;
+  if (typeof id !== "string" || !UUID_PATTERN.test(id)) {
+    throw new TypeError("Il modello personale deve avere un identificativo valido.");
+  }
+  if (!isPositiveInteger(colorId)) {
+    throw new TypeError("Il colore deve avere un identificativo numerico positivo.");
+  }
+  if (!isPositiveInteger(quantity) || quantity > MAX_QUANTITY) {
+    throw new RangeError(`La quantita deve essere compresa tra 1 e ${MAX_QUANTITY}.`);
+  }
+  if (
+    !["file", "link"].includes(sourceType) ||
+    typeof name !== "string" ||
+    name.length === 0 ||
+    name.length > 120
+  ) {
+    throw new TypeError("I dati del modello personale non sono validi.");
+  }
+  if (sourceType === "file" && selection.modelUrl !== `/uploads/${id}.stl`) {
+    throw new TypeError("Il percorso del file STL non e valido.");
+  }
+  if (sourceType === "link" && !isAllowedExternalUrl(selection.externalUrl)) {
+    throw new TypeError("Il link esterno non e valido.");
+  }
+
+  const key = createCustomKey(id, colorId);
+  const existingItem = cart.find((item) => item.key === key);
+  if (existingItem) {
+    return cart.map((item) =>
+      item.key === key
+        ? { ...item, quantity: Math.min(item.quantity + quantity, MAX_QUANTITY) }
+        : item,
+    );
+  }
+
+  return [...cart, { type: "custom", key, ...selection }];
 }
 
 export function updateCartQuantity(cart, key, quantity) {
@@ -51,6 +95,9 @@ export function getCartItemCount(cart) {
 
 export function calculateCartTotal(cart, productsById) {
   return cart.reduce((total, item) => {
+    if (item.type === "custom") {
+      return total;
+    }
     const product = productsById.get(item.productId);
     return product ? total + product.priceCents * item.quantity : total;
   }, 0);
@@ -67,18 +114,21 @@ export function parseStoredCart(serializedCart) {
       return [];
     }
 
-    return cart.filter((item) => {
+    return cart.flatMap((item) => {
       if (!item || typeof item !== "object") {
-        return false;
+        return [];
+      }
+      if (item.type === "custom") {
+        return isValidStoredCustomItem(item) ? [item] : [];
       }
       const { productId, colorId, quantity } = item;
-      return (
+      const valid =
         isPositiveInteger(productId) &&
         isPositiveInteger(colorId) &&
         isPositiveInteger(quantity) &&
         quantity <= MAX_QUANTITY &&
-        item.key === createKey(productId, colorId)
-      );
+        item.key === createKey(productId, colorId);
+      return valid ? [{ ...item, type: "catalog" }] : [];
     });
   } catch {
     return [];
@@ -88,7 +138,53 @@ export function parseStoredCart(serializedCart) {
 export function reconcileCart(cart, products, colors) {
   const productIds = new Set(products.map(({ id }) => id));
   const colorIds = new Set(colors.map(({ id }) => id));
-  return cart.filter(
-    ({ productId, colorId }) => productIds.has(productId) && colorIds.has(colorId),
+  return cart.filter((item) => {
+    if (!colorIds.has(item.colorId)) {
+      return false;
+    }
+    return item.type === "custom" || productIds.has(item.productId);
+  });
+}
+
+function isAllowedExternalUrl(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
+    const domains = ["printables.com", "thingiverse.com", "makerworld.com", "cults3d.com"];
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      domains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isValidStoredCustomItem(item) {
+  const validBase =
+    typeof item.id === "string" &&
+    UUID_PATTERN.test(item.id) &&
+    typeof item.name === "string" &&
+    item.name.length > 0 &&
+    item.name.length <= 120 &&
+    isPositiveInteger(item.colorId) &&
+    isPositiveInteger(item.quantity) &&
+    item.quantity <= MAX_QUANTITY &&
+    item.key === createCustomKey(item.id, item.colorId);
+  if (!validBase) {
+    return false;
+  }
+  if (item.sourceType === "file") {
+    return item.modelUrl === `/uploads/${item.id}.stl`;
+  }
+  return (
+    item.sourceType === "link" &&
+    ["Printables", "Thingiverse", "MakerWorld", "Cults3D"].includes(item.sourceName) &&
+    isAllowedExternalUrl(item.externalUrl)
   );
 }

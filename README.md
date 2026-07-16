@@ -33,6 +33,9 @@ npm.cmd test
 - `GET /api/products`: prodotti visibili.
 - `GET /api/products/:id`: dettaglio di un prodotto.
 - `GET /api/colors`: colori attivi.
+- `POST /api/custom-models/upload`: caricamento temporaneo di un file STL.
+- `POST /api/custom-models/link`: validazione di un link esterno.
+- `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
 
 ## Documentazione
 

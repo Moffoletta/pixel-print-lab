@@ -309,3 +309,66 @@ Apri e chiudi piu volte entrambi i modelli. Nella scheda Network verifica che Th
 4. A cosa serve `ResizeObserver`?
 5. Perche geometria e materiale vengono eliminati con `dispose`?
 6. In quale momento viene importato `viewer.js`?
+
+## Fase 6 - Modelli Personali
+
+### 1. Confronta Anteprima E Upload
+
+Seleziona un STL e apri l'anteprima senza aggiungerlo al carrello. Nella scheda Network verifica che non sia ancora presente una richiesta a `/api/custom-models/upload`.
+
+Premi poi "Aggiungi richiesta al carrello" e individua la richiesta multipart.
+
+### 2. Osserva FormData
+
+Inserisci un breakpoint prima della `fetch` di upload e ispeziona `uploadData`. Verifica che contenga un solo campo chiamato `model`.
+
+### 3. Prova Le Validazioni
+
+Prova separatamente:
+
+- un file `.txt`;
+- un `.stl` con contenuto testuale casuale;
+- un file STL valido;
+- un link HTTP;
+- `https://printables.com.example.org/model/1`;
+- un link HTTPS valido da MakerWorld.
+
+Confronta i messaggi client e le risposte HTTP.
+
+### 4. Leggi Un UUID
+
+Dopo un upload, apri `storage/uploads` e confronta il nome su disco con il nome mostrato nel carrello. Spiega perche non coincidono e quale problema evita il nome casuale.
+
+### 5. Verifica La Scadenza
+
+Leggi `expiresAt` nel valore del carrello salvato in `localStorage`. Individua nel server la costante che stabilisce la durata e la funzione che elimina i file vecchi.
+
+### 6. Analizza Un STL Binario
+
+Apri un STL binario con un visualizzatore esadecimale. Individua gli 80 byte iniziali e i 4 byte che contengono il numero di triangoli. Calcola la dimensione attesa con la formula documentata.
+
+### 7. Confronta I Tipi Del Carrello
+
+Aggiungi un prodotto, un file e un link. Ispeziona i tre oggetti in `localStorage` e annota quali campi sono condivisi e quali dipendono da `type` e `sourceType`.
+
+### 8. Controlla Il Totale
+
+Aggiungi un prodotto a prezzo noto con quantita 2 e un modello personale con quantita 5. Verifica che il numero di pezzi sia 7 ma che il totale economico includa soltanto il prodotto.
+
+### 9. Verifica La Cancellazione
+
+Aggiungi un file, annota il suo URL, poi rimuovilo dal carrello. Apri nuovamente l'URL e verifica la risposta `404`.
+
+### 10. Usa Il Form Da Tastiera
+
+Passa tra File STL e Link esterno, seleziona colore, modifica quantita e invia il form usando soltanto tastiera e tasti freccia.
+
+## Autovalutazione Della Fase 6
+
+1. Perche la validazione client non e sufficiente?
+2. Come viene riconosciuto un STL binario?
+3. Perche il nome originale non viene usato sul disco?
+4. Cosa impedisce a un dominio ingannevole di superare l'allowlist?
+5. Quando viene cancellato un upload temporaneo?
+6. Perche un modello personale non modifica il totale?
+7. Quale compatibilita viene mantenuta per il vecchio carrello?

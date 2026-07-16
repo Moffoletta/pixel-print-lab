@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   addCartItem,
+  addCustomCartItem,
   calculateCartTotal,
   getCartItemCount,
   parseStoredCart,
@@ -16,7 +17,9 @@ test("aggiunge e unisce configurazioni uguali", () => {
   const initialCart = addCartItem([], firstSelection);
   const updatedCart = addCartItem(initialCart, { ...firstSelection, quantity: 2 });
 
-  assert.deepEqual(updatedCart, [{ key: "1:2", productId: 1, colorId: 2, quantity: 5 }]);
+  assert.deepEqual(updatedCart, [
+    { type: "catalog", key: "1:2", productId: 1, colorId: 2, quantity: 5 },
+  ]);
   assert.equal(getCartItemCount(updatedCart), 5);
 });
 
@@ -58,7 +61,7 @@ test("ignora dati locali corrotti o non validi", () => {
   assert.deepEqual(parseStoredCart('{"item": 1}'), []);
   assert.deepEqual(
     parseStoredCart('[{"key":"1:2","productId":1,"colorId":2,"quantity":4},{"bad":true}]'),
-    [{ key: "1:2", productId: 1, colorId: 2, quantity: 4 }],
+    [{ key: "1:2", productId: 1, colorId: 2, quantity: 4, type: "catalog" }],
   );
 });
 
@@ -69,4 +72,49 @@ test("rimuove configurazioni non piu disponibili", () => {
   ];
 
   assert.deepEqual(reconcileCart(cart, [{ id: 1 }, { id: 2 }], [{ id: 1 }]), [cart[0]]);
+});
+
+test("aggiunge un modello personale senza influire sul totale", () => {
+  const custom = {
+    id: "123e4567-e89b-42d3-a456-426614174000",
+    sourceType: "file",
+    name: "modello.stl",
+    modelUrl: "/uploads/123e4567-e89b-42d3-a456-426614174000.stl",
+    colorId: 1,
+    quantity: 2,
+  };
+  const cart = addCustomCartItem([], custom);
+
+  assert.equal(cart[0].type, "custom");
+  assert.equal(cart[0].key, "custom:123e4567-e89b-42d3-a456-426614174000:1");
+  assert.equal(calculateCartTotal(cart, new Map()), 0);
+});
+
+test("conserva link autorizzati e scarta link manipolati", () => {
+  const id = "123e4567-e89b-42d3-a456-426614174001";
+  const validLink = {
+    id,
+    sourceType: "link",
+    name: "Modello da Printables",
+    externalUrl: "https://www.printables.com/model/123",
+    sourceName: "Printables",
+    colorId: 2,
+    quantity: 1,
+  };
+  const cart = addCustomCartItem([], validLink);
+  const restored = parseStoredCart(JSON.stringify(cart));
+  const manipulated = parseStoredCart(
+    JSON.stringify([{ ...cart[0], externalUrl: "https://printables.com.example.org/model/123" }]),
+  );
+
+  assert.deepEqual(restored, cart);
+  assert.deepEqual(manipulated, []);
+});
+
+test("normalizza gli elementi catalogo salvati dalle versioni precedenti", () => {
+  const restored = parseStoredCart(
+    '[{"key":"1:2","productId":1,"colorId":2,"quantity":4}]',
+  );
+
+  assert.equal(restored[0].type, "catalog");
 });

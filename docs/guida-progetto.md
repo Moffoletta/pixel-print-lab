@@ -585,3 +585,168 @@ La fase verifica automaticamente e in browser reale che:
 ## 18. Esito Della Fase 5
 
 Il catalogo offre ora anteprime 3D interattive caricate su richiesta. Lo stesso viewer e pronto per mostrare i file STL personali che verranno introdotti nella fase successiva.
+
+## 19. Fase 6 - Modelli Personali
+
+### Due Flussi Distinti
+
+La sezione fuori catalogo permette di scegliere tra:
+
+- caricamento di un file STL;
+- collegamento a una pagina esterna autorizzata.
+
+Le modalita sono alternative. Il form rende obbligatorio soltanto il campo attivo e condivide colore e quantita. I modelli personali entrano nel carrello con la dicitura "Prezzo da definire" e non modificano il totale del catalogo.
+
+### Anteprima Locale Prima Dell'Upload
+
+Quando viene selezionato un file, il pulsante "Visualizza STL" crea un URL temporaneo del browser con `URL.createObjectURL`. Il viewer della fase 5 carica direttamente quel riferimento.
+
+L'anteprima avviene prima dell'upload e non invia ancora il file al server. Al termine del caricamento 3D, `URL.revokeObjectURL` libera il riferimento locale.
+
+Il controllo client verifica estensione e dimensione per fornire un errore immediato, ma non viene considerato una misura di sicurezza sufficiente.
+
+### Upload Multipart
+
+Il file viene inviato a:
+
+```text
+POST /api/custom-models/upload
+```
+
+La richiesta usa `multipart/form-data`, formato adatto a trasferire file binari. Multer 2.2 gestisce il flusso e impone:
+
+- un solo file;
+- nessun campo testuale aggiuntivo;
+- massimo due parti multipart;
+- dimensione massima di 50 MB.
+
+La versione minima 2.2 e importante: versioni precedenti presentano vulnerabilita note nella gestione di richieste incomplete e campi profondamente annidati.
+
+### Validazione Del File
+
+Il server non si fida di nome o MIME comunicati dal browser. Verifica:
+
+1. estensione `.stl` senza distinzione tra maiuscole e minuscole;
+2. dimensione maggiore di zero e non superiore al limite;
+3. struttura compatibile con STL ASCII oppure STL binario.
+
+Per un STL binario, i byte da 80 a 83 indicano il numero di triangoli. La dimensione attesa e:
+
+```text
+84 + numeroTriangoli * 50
+```
+
+Per un STL ASCII, il campione iniziale deve contenere `solid`, `facet` e `vertex`.
+
+Questa validazione riconosce il contenitore STL, ma non garantisce che il modello sia stampabile. Controlli geometrici come manifold, pareti o volume richiederebbero strumenti specifici e non fanno parte di questa fase.
+
+### Nome Casuale E Cartella Privata
+
+Il nome originale non viene usato come nome sul disco. Il server genera un UUID e salva:
+
+```text
+storage/uploads/<uuid>.stl
+```
+
+Questo evita collisioni e impedisce che parti del nome inviato controllino il percorso. Il nome originale, ridotto a 120 caratteri e privato di eventuali directory, viene restituito soltanto come etichetta del carrello.
+
+Gli upload non entrano in Git. Express li pubblica attraverso `/uploads` con:
+
+- `Content-Type: model/stl`;
+- `X-Content-Type-Options: nosniff`;
+- cache privata disabilitata.
+
+Il server tratta il file come dato e non lo esegue.
+
+### Durata E Pulizia
+
+Un upload temporaneo scade dopo 24 ore. La pulizia viene eseguita all'avvio e dopo un caricamento riuscito. Sono eliminati soltanto file `.stl` piu vecchi della durata configurata.
+
+Quando un file viene rimosso dal carrello, il browser invia:
+
+```text
+DELETE /api/custom-models/:id
+```
+
+Al caricamento della pagina, una richiesta `HEAD` controlla che ogni upload salvato nel carrello esista ancora. I riferimenti scaduti vengono rimossi.
+
+Nella futura creazione dell'ordine, i file confermati dovranno essere spostati fuori dall'area temporanea e mantenuti fino all'eliminazione dell'ordine.
+
+### Link Autorizzati
+
+I link vengono inviati a:
+
+```text
+POST /api/custom-models/link
+```
+
+Il server accetta esclusivamente HTTPS, senza credenziali nell'URL, e confronta l'hostname con:
+
+- `printables.com`;
+- `thingiverse.com`;
+- `makerworld.com`;
+- `cults3d.com`.
+
+Sono consentiti i relativi sottodomini. Un dominio ingannevole come `printables.com.example.org` viene rifiutato, perche non e uguale al dominio consentito e non ne e un sottodominio.
+
+Il link non viene scaricato o incorporato nel viewer. Nel carrello si apre in una nuova pagina con `noopener` e `noreferrer`.
+
+### Modello Del Carrello Esteso
+
+Gli elementi del catalogo hanno `type: "catalog"`. I modelli personali hanno `type: "custom"` e `sourceType` uguale a `file` o `link`.
+
+Un elemento file conserva:
+
+- UUID temporaneo;
+- nome originale;
+- URL interno del modello;
+- scadenza;
+- colore e quantita.
+
+Un elemento link conserva:
+
+- UUID del riferimento;
+- nome e sito sorgente;
+- URL esterno validato;
+- colore e quantita.
+
+Il parser del carrello continua ad accettare gli elementi creati nella fase 4, privi del campo `type`, e li normalizza come prodotti di catalogo. Questa compatibilita e necessaria perche il dato e gia persistito in `localStorage`.
+
+### Prezzi E Sicurezza
+
+`calculateCartTotal` ignora gli elementi `custom`. Il riepilogo distingue quindi il totale dei soli prodotti a prezzo noto dalle righe che richiedono una valutazione privata.
+
+Anche i dati del carrello personalizzato possono essere manipolati nel browser. Il parser ricontrolla forma, UUID, URL interno, link HTTPS, dominio, colore e quantita. La futura API degli ordini dovra ripetere tutte le validazioni.
+
+### Gestione Degli Errori
+
+Le API restituiscono codici e messaggi distinti:
+
+- `400` per estensione, contenuto, link o richiesta non validi;
+- `404` per un upload gia rimosso o scaduto;
+- `413` per un file superiore a 50 MB;
+- `500` per un errore interno inatteso.
+
+Se un upload riesce ma l'aggiunta al carrello fallisce, il browser prova a cancellare immediatamente il file appena creato.
+
+### Verifiche
+
+I test automatici e il collaudo browser coprono:
+
+- STL ASCII e binario;
+- estensione e contenuto non validi;
+- limite reale di 50 MB;
+- servizio e cancellazione del file;
+- pulizia di un temporaneo scaduto;
+- domini consentiti, domini ingannevoli e protocollo HTTP;
+- anteprima locale nel viewer;
+- aggiunta di file e link al carrello;
+- prezzo escluso dal totale;
+- apertura 3D e apertura link;
+- cancellazione del file alla rimozione;
+- compatibilita con il carrello della fase precedente;
+- layout desktop e mobile.
+
+## 20. Esito Della Fase 6
+
+La pagina raccoglie ora prodotti del catalogo, STL personali e link esterni nello stesso carrello. I modelli personali non hanno prezzo e i file rimangono temporanei; la fase successiva trasformera il riepilogo in una richiesta persistente identificata da un codice.
