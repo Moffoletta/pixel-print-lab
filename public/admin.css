@@ -77,6 +77,20 @@
   text-transform: uppercase;
 }
 
+.admin-customer strong,
+.admin-item__fields p {
+  margin: 0;
+  display: block;
+  min-height: 3rem;
+  padding: 0.75rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
 .admin-login input,
 .admin-customer input,
 .admin-order-status select,

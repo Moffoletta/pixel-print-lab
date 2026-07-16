@@ -57,7 +57,7 @@
             <div class="order-empty" id="order-empty">
               <span aria-hidden="true">&lt;/&gt;</span>
               <h2>Seleziona una richiesta</h2>
-              <p>I dettagli e gli strumenti di modifica appariranno qui.</p>
+              <p>I dettagli della richiesta appariranno qui.</p>
             </div>
 
             <form id="order-form" hidden>
@@ -81,20 +81,18 @@
               </div>
 
               <div class="admin-customer">
-                <label for="order-first-name"><span>Nome</span><input id="order-first-name" maxlength="60" required></label>
-                <label for="order-last-name"><span>Cognome</span><input id="order-last-name" maxlength="60" required></label>
+                <div><span>Nome</span><strong id="order-first-name"></strong></div>
+                <div><span>Cognome</span><strong id="order-last-name"></strong></div>
               </div>
 
               <div class="admin-items-heading">
                 <h3>Elementi</h3>
-                <button id="add-catalog-item" type="button">+ Prodotto</button>
               </div>
               <div class="admin-items" id="admin-items"></div>
 
               <p class="admin-feedback" id="order-feedback" role="status"></p>
               <div class="order-actions">
                 <button class="delete-order" id="delete-order" type="button">Elimina richiesta</button>
-                <button class="save-order" id="save-order" type="submit">Salva modifiche</button>
               </div>
             </form>
           </section>
@@ -168,12 +166,11 @@
       <article class="admin-item">
         <header>
           <div><span data-field="item-type"></span><h4 data-field="item-name"></h4></div>
-          <button data-field="remove-item" type="button">Rimuovi</button>
         </header>
         <div class="admin-item__fields">
-          <label data-field="product-field"><span>Prodotto</span><select data-field="product"></select></label>
-          <label><span>Colore</span><select data-field="color"></select></label>
-          <label><span>Quantita</span><input data-field="quantity" type="number" min="1" max="99" required></label>
+          <div data-field="product-field"><span>Codice prodotto</span><p data-field="product"></p></div>
+          <div><span>Colore</span><p data-field="color"></p></div>
+          <div><span>Quantita</span><p data-field="quantity"></p></div>
         </div>
         <div class="admin-item__resource">
           <a data-field="model-link" hidden>Scarica modello</a>

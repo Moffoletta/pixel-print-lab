@@ -453,25 +453,27 @@ Apri `/api/admin/orders` in una finestra privata non autenticata e osserva HTTP 
 
 Accedi, riavvia Node.js e ricarica il pannello. La sessione deve essere persa perche lo store e in memoria.
 
-### 5. Modifica Uno Snapshot
+### 5. Verifica Uno Snapshot
 
-Cambia prodotto, colore e quantita di una richiesta. Confronta prima e dopo:
+Modifica prezzo, nome o colore del prodotto nel catalogo. Confronta il catalogo corrente con:
 
 - `orders.catalog_total_cents`;
 - righe in `order_items`;
 - email simulata.
 
-### 6. Osserva Gli ID Delle Righe
+I dati della richiesta devono restare invariati.
 
-Annota gli ID di `order_items`, salva una modifica e rileggili. Spiega perche possono cambiare e quale campo mantiene l'ordine visivo.
+### 6. Verifica La Sola Lettura
+
+Apri una richiesta e verifica che cliente, prodotti, colori e quantita siano testo non modificabile. Controlla che restino disponibili soltanto cambio stato e cancellazione.
 
 ### 7. Prova Un Download Protetto
 
 Copia l'URL "Apri STL", esegui logout e aprilo nuovamente. Deve essere rifiutato.
 
-### 8. Rimuovi Una Riga File
+### 8. Verifica Il Modello Protetto
 
-Elimina una riga STL da un ordine, salva e controlla `storage/orders`. Verifica che il file venga cancellato soltanto dopo la modifica riuscita.
+Apri un modello personale dal dettaglio, quindi verifica che non esistano controlli per sostituirlo o rimuovere soltanto la sua riga.
 
 ### 9. Prova Il Limite Login
 
@@ -486,9 +488,9 @@ Crea una richiesta di prova, annota record, file ed email, quindi eliminala dal 
 1. Perche proteggere soltanto `admin.html` non sarebbe sufficiente?
 2. Quali attributi proteggono il cookie?
 3. Dove vengono conservate le sessioni?
-4. Perche il server rivalida anche le modifiche amministrative?
-5. Come viene aggiornato un ordine in una transazione?
-6. Quando viene eliminato un file STL permanente?
+4. Perche cliente e righe dell'ordine sono in sola lettura?
+5. Quale endpoint puo aggiornare lo stato senza riscrivere gli snapshot?
+6. Quando vengono eliminati i file permanenti di un ordine?
 7. Quali limiti ha l'autenticazione attuale?
 
 ## Fase 9 - Gestione Catalogo E Colori
@@ -621,7 +623,7 @@ Attiva `prefers-reduced-motion` negli strumenti del browser. La stampante pixel 
 
 1. Perche l'API pubblica non usa `SELECT *`?
 2. Perche il codice richiesta non deve essere considerato segreto?
-3. Perche lo stato usa un endpoint separato dalla modifica dell'ordine?
+3. Perche lo stato usa un endpoint separato dal dettaglio in sola lettura?
 4. Come vengono scartate risposte di polling obsolete?
 5. Quando una richiesta completata scompare dall'elenco?
 6. Quali informazioni possono essere dedotte osservando tutti i codici pubblici?

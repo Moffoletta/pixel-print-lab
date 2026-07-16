@@ -1005,7 +1005,7 @@ POST   /api/admin/logout
 GET    /api/admin/session
 GET    /api/admin/orders
 GET    /api/admin/orders/:id
-PUT    /api/admin/orders/:id
+PATCH  /api/admin/orders/:id/status
 DELETE /api/admin/orders/:id
 GET    /api/admin/orders/:orderId/items/:itemId/model
 ```
@@ -1016,42 +1016,32 @@ Nomi, righe e file permanenti non hanno API pubbliche. L'endpoint di tracking ag
 
 L'elenco mostra codice, cliente, data, numero di righe e pezzi. Una query aggregata usa `COUNT` e `SUM`, mantenendo una sola riga per ordine.
 
-Il dettaglio restituisce snapshot completi. L'interfaccia presenta archivio a sinistra e editor a destra su desktop; su schermi stretti le sezioni diventano verticali.
+Il dettaglio restituisce snapshot completi. L'interfaccia presenta archivio a sinistra e dettaglio a destra su desktop; su schermi stretti le sezioni diventano verticali.
 
-### Modifica Delle Righe
+### Dettaglio In Sola Lettura
 
-Il pannello permette di:
+Il pannello permette di consultare:
 
-- cambiare nome e cognome;
-- cambiare prodotto nelle righe di catalogo;
-- cambiare colore e quantita;
-- aggiungere prodotti di catalogo;
-- rimuovere qualsiasi riga;
-- conservare file e link delle righe personali.
+- nome e cognome del cliente;
+- prodotti, colori e quantita delle righe di catalogo;
+- file e link delle righe personali;
+- snapshot dei prezzi e totale del catalogo.
 
-La sorgente di un elemento personale e immutabile: sostituire fisicamente un STL o trasformare un file in link richiederebbe un nuovo flusso di upload e non viene simulato con dati incompleti.
+Questi dati non sono modificabili dal pannello e non esiste un endpoint di aggiornamento completo. In questo modo la richiesta resta una fotografia fedele di cio che il cliente ha inviato.
 
-Il server rilegge prodotti e colori disponibili. Non considera affidabili select o input del pannello, nonostante l'utente sia autenticato.
+L'amministratore puo cambiare soltanto lo stato pubblico tramite l'endpoint dedicato oppure eliminare definitivamente l'ordine. Il download dei modelli resta protetto dalla sessione.
 
-### Riscrittura Transazionale
+### Snapshot Immutabili
 
-Durante un aggiornamento il server:
+Gli snapshot dell'ordine sono separati dal catalogo corrente. Le successive modifiche a prodotti, prezzi e colori non riscrivono:
 
-1. valida cliente e righe;
-2. ricostruisce gli snapshot;
-3. ricalcola il totale;
-4. aggiorna la testata;
-5. elimina le vecchie righe;
-6. inserisce le nuove posizioni;
-7. completa tutto nella stessa transazione SQLite.
-
-Questa strategia rende semplici aggiunta, rimozione e riordinamento. Gli ID delle righe possono cambiare dopo il salvataggio e il browser ricarica il dettaglio aggiornato.
-
-L'email simulata viene riscritta con i dati correnti.
+- nome e cognome;
+- righe e relativi snapshot;
+- totale noto;
+- email simulata;
+- file originali associati.
 
 ### Rimozione Dei File
-
-Se una modifica elimina una riga STL, il file viene rimosso dopo il commit soltanto quando nessun'altra riga lo riferisce.
 
 Eliminando un intero ordine:
 
@@ -1071,7 +1061,7 @@ La pagina gestisce:
 - ripristino automatico di una sessione valida;
 - ritorno al login dopo `401`;
 - selezione della prima richiesta;
-- feedback di salvataggio ed errore;
+- feedback di aggiornamento stato ed errore;
 - stato vuoto;
 - layout a una colonna sotto i 900 px.
 
@@ -1093,16 +1083,16 @@ La fase verifica:
 - controllo della sessione;
 - elenco e dettaglio;
 - protezione del download STL;
-- modifica di cliente, prodotti, colori e quantita;
-- aggiunta e rimozione di righe;
-- ricalcolo del totale e rigenerazione email;
+- immutabilita di cliente, prodotti, colori, quantita e totale;
+- rifiuto dell'endpoint di modifica completa rimosso;
+- aggiornamento separato del solo stato pubblico;
 - eliminazione di ordine, file ed email;
 - invalidazione al logout;
 - flusso reale desktop e mobile.
 
 ## 24. Esito Della Fase 8
 
-Le richieste possono ora essere consultate e gestite da un pannello protetto. La fase successiva estende la stessa area amministrativa a prodotti, immagini, STL di catalogo e colori globali.
+Le richieste possono ora essere consultate da un pannello protetto, con stato modificabile e cancellazione definitiva. La fase successiva estende la stessa area amministrativa a prodotti, immagini, STL di catalogo e colori globali.
 
 ## 25. Fase 9 - Gestione Catalogo E Colori
 
@@ -1286,7 +1276,7 @@ Il pannello usa un endpoint dedicato:
 PATCH /api/admin/orders/:id/status
 ```
 
-Separare lo stato dalla modifica completa evita di riscrivere elementi, snapshot, file o email. L'endpoint richiede la sessione admin, valida esattamente l'ID e accetta soltanto i tre valori previsti.
+Rendere il dettaglio in sola lettura e separare lo stato evita di riscrivere elementi, snapshot, file o email. L'endpoint richiede la sessione admin, valida esattamente l'ID e accetta soltanto i tre valori previsti.
 
 ### Interfaccia Pubblica
 

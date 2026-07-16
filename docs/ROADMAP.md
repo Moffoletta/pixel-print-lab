@@ -68,8 +68,8 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Aggiunti cookie HttpOnly, SameSite e scadenza.
 - [x] Limitati i tentativi di login falliti.
 - [x] Create API protette per elenco, dettaglio e download STL.
-- [x] Gestite modifica completa e aggiunta/rimozione righe.
-- [x] Ricalcolati snapshot, totale ed email dopo il salvataggio.
+- [x] Resi consultabili in sola lettura cliente, righe, snapshot e totale.
+- [x] Limitate le modifiche dell'ordine a stato pubblico e cancellazione definitiva.
 - [x] Eliminati ordine, file ed email in modo coordinato.
 - [x] Creato pannello Control Room responsive.
 - [x] Verificati login, gestione e logout su desktop e mobile.

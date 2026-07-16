@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { unlink, writeFile } from "node:fs/promises";
+import { unlink } from "node:fs/promises";
 import path from "node:path";
 import {
   CatalogAssetError,
@@ -11,11 +11,8 @@ import {
 } from "./catalog-assets.js";
 import { modelContentType } from "./model-files.js";
 import {
-  buildEmail,
   defaultEmailOutboxDirectory,
   defaultOrderFileDirectory,
-  validatePersonName,
-  validateQuantity,
   ORDER_STATUSES,
 } from "./order-routes.js";
 
@@ -220,12 +217,6 @@ export function registerAdminRoutes(
   const findOrder = database.prepare("SELECT * FROM orders WHERE id = ?");
   const listItems = database.prepare("SELECT * FROM order_items WHERE order_id = ? ORDER BY position");
   const findItem = database.prepare("SELECT * FROM order_items WHERE id = ? AND order_id = ?");
-  const findProduct = database.prepare(`
-    SELECT id, code, name, price_cents FROM products WHERE id = ? AND visible = 1
-  `);
-  const findColor = database.prepare(`
-    SELECT id, name, hex_value FROM colors WHERE id = ? AND active = 1
-  `);
   const findAnyProduct = database.prepare("SELECT * FROM products WHERE id = ?");
   const findAnyColor = database.prepare("SELECT * FROM colors WHERE id = ?");
   const listAdminProducts = database.prepare("SELECT * FROM products ORDER BY sort_order, id");
@@ -261,35 +252,9 @@ export function registerAdminRoutes(
     const updatePosition = database.prepare("UPDATE colors SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
     ids.forEach((id, index) => updatePosition.run((index + 1) * 10, id));
   });
-  const updateOrder = database.prepare(`
-    UPDATE orders
-    SET first_name = @firstName, last_name = @lastName, catalog_total_cents = @catalogTotalCents
-    WHERE id = @id
-  `);
   const updateOrderStatus = database.prepare(`
     UPDATE orders SET status = ? WHERE id = ?
   `);
-  const deleteItems = database.prepare("DELETE FROM order_items WHERE order_id = ?");
-  const insertItem = database.prepare(`
-    INSERT INTO order_items (
-      order_id, position, item_type, product_id, product_code, product_name,
-      unit_price_cents, color_id, color_name, color_hex, quantity,
-      original_name, source_name, external_url, model_filename
-      , model_format, model_metadata_json
-    ) VALUES (
-      @orderId, @position, @itemType, @productId, @productCode, @productName,
-      @unitPriceCents, @colorId, @colorName, @colorHex, @quantity,
-      @originalName, @sourceName, @externalUrl, @modelFilename
-      , @modelFormat, @modelMetadataJson
-    )
-  `);
-  const replaceOrder = database.transaction((order) => {
-    updateOrder.run(order);
-    deleteItems.run(order.id);
-    order.items.forEach((item, index) => {
-      insertItem.run({ ...item, orderId: order.id, position: index + 1 });
-    });
-  });
 
   function pruneSessions() {
     const now = Date.now();
@@ -561,127 +526,6 @@ export function registerAdminRoutes(
     response.setHeader("Content-Type", modelContentType(item.model_format ?? (item.model_filename.toLowerCase().endsWith(".3mf") ? "3mf" : "stl")));
     response.setHeader("X-Content-Type-Options", "nosniff");
     return response.download(path.join(orderFileDirectory, item.model_filename), item.original_name ?? item.model_filename);
-  });
-
-  app.put("/api/admin/orders/:id", requireAdmin, async (request, response) => {
-    try {
-      const id = Number.parseInt(request.params.id, 10);
-      const existingOrder = Number.isInteger(id) ? findOrder.get(id) : undefined;
-      if (!existingOrder) throw new AdminError("ORDER_NOT_FOUND", "Richiesta non trovata.", 404);
-      const firstName = validatePersonName(request.body?.firstName, "Il nome");
-      const lastName = validatePersonName(request.body?.lastName, "Il cognome");
-      if (!Array.isArray(request.body?.items) || request.body.items.length < 1 || request.body.items.length > 100) {
-        throw new AdminError("INVALID_ORDER_ITEMS", "La richiesta deve contenere da 1 a 100 elementi.");
-      }
-
-      const existingItems = listItems.all(id);
-      const existingById = new Map(existingItems.map((item) => [item.id, item]));
-      const seen = new Set();
-      const items = request.body.items.map((item) => {
-        let quantity;
-        try {
-          quantity = validateQuantity(item?.quantity);
-        } catch (error) {
-          throw new AdminError("INVALID_QUANTITY", error.message);
-        }
-        const existing = Number.isInteger(item?.id) ? existingById.get(item.id) : undefined;
-        const color = existing && item.colorId === existing.color_id
-          ? { id: existing.color_id, name: existing.color_name, hex_value: existing.color_hex }
-          : Number.isInteger(item?.colorId) ? findColor.get(item.colorId) : undefined;
-        if (!color) throw new AdminError("COLOR_UNAVAILABLE", "Il colore selezionato non e disponibile.");
-
-        if (item.itemType === "catalog") {
-          const product = existing && existing.item_type === "catalog" && item.productId === existing.product_id
-            ? {
-                id: existing.product_id,
-                code: existing.product_code,
-                name: existing.product_name,
-                price_cents: existing.unit_price_cents,
-              }
-            : Number.isInteger(item.productId) ? findProduct.get(item.productId) : undefined;
-          if (!product) throw new AdminError("PRODUCT_UNAVAILABLE", "Il prodotto selezionato non e disponibile.");
-          const key = `catalog:${product.id}:${color.id}`;
-          if (seen.has(key)) throw new AdminError("DUPLICATE_ITEM", "Sono presenti righe duplicate.");
-          seen.add(key);
-          return {
-            itemType: "catalog",
-            productId: product.id,
-            productCode: product.code,
-            productName: product.name,
-            unitPriceCents: product.price_cents,
-            colorId: color.id,
-            colorName: color.name,
-            colorHex: color.hex_value,
-            quantity,
-            originalName: null,
-            sourceName: null,
-            externalUrl: null,
-            modelFilename: null,
-            modelFormat: null,
-            modelMetadataJson: null,
-          };
-        }
-
-        if (!existing || existing.item_type !== item.itemType || item.itemType === "catalog") {
-          throw new AdminError("INVALID_ORDER_ITEM", "Una riga personalizzata non e valida.");
-        }
-        const key = `custom:${existing.id}`;
-        if (seen.has(key)) throw new AdminError("DUPLICATE_ITEM", "Sono presenti righe duplicate.");
-        seen.add(key);
-        return {
-          itemType: existing.item_type,
-          productId: null,
-          productCode: null,
-          productName: existing.product_name,
-          unitPriceCents: null,
-          colorId: color.id,
-          colorName: color.name,
-          colorHex: color.hex_value,
-          quantity,
-          originalName: existing.original_name,
-          sourceName: existing.source_name,
-          externalUrl: existing.external_url,
-          modelFilename: existing.model_filename,
-          modelFormat: existing.model_format ?? (existing.model_filename?.toLowerCase().endsWith(".3mf") ? "3mf" : "stl"),
-          modelMetadataJson: existing.model_metadata_json,
-          modelMetadata: parseModelMetadata(existing.model_metadata_json),
-        };
-      });
-
-      const catalogTotalCents = items.reduce(
-        (total, item) => item.unitPriceCents === null ? total : total + item.unitPriceCents * item.quantity,
-        0,
-      );
-      replaceOrder({ id, firstName, lastName, catalogTotalCents, items });
-
-      const retainedModels = new Set(items.map((item) => item.modelFilename).filter(Boolean));
-      const removedModels = new Set(
-        existingItems.map((item) => item.model_filename).filter((name) => name && !retainedModels.has(name)),
-      );
-      await Promise.all(
-        [...removedModels].map(async (filename) => {
-          const references = database
-            .prepare("SELECT COUNT(*) AS count FROM order_items WHERE model_filename = ?")
-            .get(filename).count;
-          if (references === 0) await unlink(path.join(orderFileDirectory, filename)).catch(console.error);
-        }),
-      );
-
-      const email = buildEmail({
-        code: existingOrder.code,
-        firstName,
-        lastName,
-        catalogTotalCents,
-        items,
-      });
-      await writeFile(path.join(emailOutboxDirectory, `${existingOrder.code}.txt`), email).catch(console.error);
-      response.json({ data: { id, code: existingOrder.code } });
-    } catch (error) {
-      if (error?.code === "INVALID_CUSTOMER") {
-        return sendError(response, new AdminError(error.code, error.message));
-      }
-      return sendError(response, error);
-    }
   });
 
   app.delete("/api/admin/orders/:id", requireAdmin, async (request, response) => {

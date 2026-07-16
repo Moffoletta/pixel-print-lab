@@ -14,14 +14,12 @@ const orderCode = document.querySelector("#order-code");
 const orderTotal = document.querySelector("#order-total");
 const orderStatusSelect = document.querySelector("#order-status");
 const saveOrderStatusButton = document.querySelector("#save-order-status");
-const firstNameInput = document.querySelector("#order-first-name");
-const lastNameInput = document.querySelector("#order-last-name");
+const firstNameValue = document.querySelector("#order-first-name");
+const lastNameValue = document.querySelector("#order-last-name");
 const adminItems = document.querySelector("#admin-items");
 const adminItemTemplate = document.querySelector("#admin-item-template");
-const addCatalogItemButton = document.querySelector("#add-catalog-item");
 const orderFeedback = document.querySelector("#order-feedback");
 const deleteOrderButton = document.querySelector("#delete-order");
-const saveOrderButton = document.querySelector("#save-order");
 const ordersView = document.querySelector("#orders-view");
 const catalogView = document.querySelector("#catalog-view");
 const navigationButtons = document.querySelectorAll("[data-view]");
@@ -119,47 +117,21 @@ async function loadOrders() {
   }
 }
 
-function addOptions(select, values, selectedId, getLabel) {
-  values.forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value.id;
-    option.textContent = getLabel(value);
-    option.selected = value.id === selectedId;
-    select.append(option);
-  });
-}
-
 function createItemEditor(item) {
   const element = adminItemTemplate.content.firstElementChild.cloneNode(true);
   const productField = element.querySelector('[data-field="product-field"]');
-  const productSelect = element.querySelector('[data-field="product"]');
-  const colorSelect = element.querySelector('[data-field="color"]');
-  const quantityInput = element.querySelector('[data-field="quantity"]');
-  const removeButton = element.querySelector('[data-field="remove-item"]');
   const modelLink = element.querySelector('[data-field="model-link"]');
   const externalLink = element.querySelector('[data-field="external-link"]');
 
   element.dataset.itemId = item.id ?? "";
   element.dataset.itemType = item.itemType;
   element.querySelector('[data-field="item-type"]').textContent = item.itemType.replace("_", " ");
-  element.querySelector('[data-field="item-name"]').textContent = item.productName ?? "Nuovo prodotto";
-  const availableColors = colors.filter((color) => color.active);
-  if (item.id) {
-    addOptions(colorSelect, [{ id: item.colorId, name: `${item.colorName} (ordine)` }], item.colorId, (color) => color.name);
-  }
-  addOptions(colorSelect, availableColors.filter((color) => color.id !== item.colorId), item.colorId ?? availableColors[0]?.id, (color) => color.name);
-  quantityInput.value = item.quantity ?? 1;
+  element.querySelector('[data-field="item-name"]').textContent = item.productName;
+  element.querySelector('[data-field="color"]').textContent = item.colorName;
+  element.querySelector('[data-field="quantity"]').textContent = item.quantity;
 
   if (item.itemType === "catalog") {
-    const availableProducts = products.filter((product) => product.visible);
-    if (item.id) {
-      addOptions(productSelect, [{ id: item.productId, name: `${item.productName} (ordine)` }], item.productId, (product) => product.name);
-    }
-    addOptions(productSelect, availableProducts.filter((product) => product.id !== item.productId), item.productId ?? availableProducts[0]?.id, (product) => product.name);
-    productSelect.addEventListener("change", () => {
-      const product = products.find(({ id }) => id === Number(productSelect.value));
-      element.querySelector('[data-field="item-name"]').textContent = product?.name ?? item.productName;
-    });
+    element.querySelector('[data-field="product"]').textContent = item.productCode;
   } else {
     productField.hidden = true;
     if (item.itemType === "custom_file") {
@@ -176,14 +148,6 @@ function createItemEditor(item) {
     }
   }
 
-  removeButton.addEventListener("click", () => {
-    if (adminItems.children.length === 1) {
-      orderFeedback.textContent = "Una richiesta deve contenere almeno un elemento.";
-      orderFeedback.classList.add("admin-feedback--error");
-      return;
-    }
-    element.remove();
-  });
   return element;
 }
 
@@ -195,8 +159,8 @@ async function loadOrder(id) {
   orderCode.textContent = currentOrder.code;
   orderTotal.textContent = euroFormatter.format(currentOrder.catalogTotalCents / 100);
   orderStatusSelect.value = currentOrder.status;
-  firstNameInput.value = currentOrder.firstName;
-  lastNameInput.value = currentOrder.lastName;
+  firstNameValue.textContent = currentOrder.firstName;
+  lastNameValue.textContent = currentOrder.lastName;
   adminItems.replaceChildren(...currentOrder.items.map(createItemEditor));
   orderFeedback.textContent = "";
   renderOrderList();
@@ -350,20 +314,6 @@ async function loadCatalog(productId = selectedProductId, preserveProductForm = 
   else newProduct();
 }
 
-function serializeEditorItem(element) {
-  const itemType = element.dataset.itemType;
-  const item = {
-    itemType,
-    colorId: Number(element.querySelector('[data-field="color"]').value),
-    quantity: Number(element.querySelector('[data-field="quantity"]').value),
-  };
-  if (element.dataset.itemId) item.id = Number(element.dataset.itemId);
-  if (itemType === "catalog") {
-    item.productId = Number(element.querySelector('[data-field="product"]').value);
-  }
-  return item;
-}
-
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = loginForm.querySelector("button");
@@ -486,50 +436,6 @@ newColorForm.addEventListener("submit", async (event) => {
   } catch (error) {
     colorFeedback.textContent = error.message;
     colorFeedback.classList.add("admin-feedback--error");
-  }
-});
-
-addCatalogItemButton.addEventListener("click", () => {
-  const availableProducts = products.filter((product) => product.visible);
-  const availableColors = colors.filter((color) => color.active);
-  if (!availableProducts.length || !availableColors.length) {
-    orderFeedback.textContent = "Servono almeno un prodotto visibile e un colore attivo.";
-    orderFeedback.classList.add("admin-feedback--error");
-    return;
-  }
-  adminItems.append(
-    createItemEditor({
-      itemType: "catalog",
-      productId: availableProducts[0].id,
-      productName: availableProducts[0].name,
-      colorId: availableColors[0].id,
-      quantity: 1,
-    }),
-  );
-});
-
-orderForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  saveOrderButton.disabled = true;
-  orderFeedback.textContent = "";
-  orderFeedback.classList.remove("admin-feedback--error");
-  try {
-    await api(`/api/admin/orders/${currentOrder.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        firstName: firstNameInput.value,
-        lastName: lastNameInput.value,
-        items: [...adminItems.children].map(serializeEditorItem),
-      }),
-    });
-    await loadOrders();
-    orderFeedback.textContent = "Modifiche salvate.";
-  } catch (error) {
-    orderFeedback.textContent = error.message;
-    orderFeedback.classList.add("admin-feedback--error");
-  } finally {
-    saveOrderButton.disabled = false;
   }
 });
 

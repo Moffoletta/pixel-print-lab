@@ -183,6 +183,16 @@ test("serve gli asset pubblici", async () => {
   }
 });
 
+test("mostra i dettagli amministrativi dell'ordine in sola lettura", async () => {
+  const page = await (await fetch(`${baseUrl}/admin.html`)).text();
+
+  assert.match(page, /<strong id="order-first-name"><\/strong>/);
+  assert.match(page, /<strong id="order-last-name"><\/strong>/);
+  assert.doesNotMatch(page, /id="add-catalog-item"/);
+  assert.doesNotMatch(page, /id="save-order"/);
+  assert.doesNotMatch(page, /data-field="remove-item"/);
+});
+
 test("espone i prodotti visibili ordinati", async () => {
   const response = await fetch(`${baseUrl}/api/products`);
   const body = await response.json();
@@ -602,17 +612,8 @@ test("conserva progetto Bambu 3MF, primo piatto e metadati nell'ordine", async (
 
   const update = await adminFetch(`/api/admin/orders/${order.id}`, {
     method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      firstName: "Ada",
-      lastName: "Bambu",
-      items: [{ id: detail.items[0].id, itemType: "custom_file", colorId: 1, quantity: 2 }],
-    }),
   });
-  assert.equal(update.status, 200);
-  const updatedItem = database.prepare("SELECT * FROM order_items WHERE order_id = ?").get(order.id);
-  assert.equal(updatedItem.model_format, "3mf");
-  assert.equal(JSON.parse(updatedItem.model_metadata_json).plateCount, 2);
+  assert.equal(update.status, 404);
   assert.equal((await adminFetch(`/api/admin/orders/${order.id}`, { method: "DELETE" })).status, 204);
   await assert.rejects(stat(path.join(orderFileDirectory, storedItem.model_filename)), { code: "ENOENT" });
 });
@@ -860,12 +861,12 @@ endsolid catalog`;
     INSERT INTO orders (code, first_name, last_name, catalog_total_cents)
     VALUES ('SNAPSHOT-TEST', 'Test', 'Storico', 1234)
   `).run().lastInsertRowid);
-  const itemId = Number(database.prepare(`
+  database.prepare(`
     INSERT INTO order_items (
       order_id, position, item_type, product_id, product_code, product_name,
       unit_price_cents, color_id, color_name, color_hex, quantity
     ) VALUES (?, 1, 'catalog', ?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(orderId, created.id, created.code, created.name, created.priceCents, color.id, color.name, color.hexValue).lastInsertRowid);
+  `).run(orderId, created.id, created.code, created.name, created.priceCents, color.id, color.name, color.hexValue);
   const snapshotQuery = database.prepare(`
     SELECT product_id, product_code, product_name, unit_price_cents, color_id, color_name, color_hex
     FROM order_items WHERE order_id = ?
@@ -884,23 +885,7 @@ endsolid catalog`;
     body: JSON.stringify({ name: "Verde Storico", hexValue: "#229944", active: false, sortOrder: 90 }),
   });
   assert.equal(colorUpdate.status, 200);
-  const historicalUpdate = await adminFetch(`/api/admin/orders/${orderId}`, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      firstName: "Test",
-      lastName: "Storico",
-      items: [{
-        id: itemId,
-        itemType: "catalog",
-        productId: created.id,
-        colorId: color.id,
-        quantity: 2,
-      }],
-    }),
-  });
-  assert.equal(historicalUpdate.status, 200);
-  assert.equal(database.prepare("SELECT catalog_total_cents FROM orders WHERE id = ?").get(orderId).catalog_total_cents, 2468);
+  assert.equal(database.prepare("SELECT catalog_total_cents FROM orders WHERE id = ?").get(orderId).catalog_total_cents, 1234);
   assert.deepEqual(snapshotQuery.get(orderId), originalSnapshot);
   assert.equal((await fetch(`${baseUrl}/api/products/${created.id}`)).status, 404);
 
@@ -1022,35 +1007,17 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
 
   const updateResponse = await adminFetch(`/api/admin/orders/${orderId}`, {
     method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      firstName: "Mario",
-      lastName: "Bianchi",
-      items: [
-        { itemType: "catalog", productId: 2, colorId: 4, quantity: 3 },
-        { id: customFile.id, itemType: "custom_file", colorId: 3, quantity: 2 },
-        { itemType: "catalog", productId: 1, colorId: 2, quantity: 1 },
-      ],
-    }),
   });
-  assert.equal(updateResponse.status, 200);
+  assert.equal(updateResponse.status, 404);
 
   const updated = (await (await adminFetch(`/api/admin/orders/${orderId}`)).json()).data;
-  assert.equal(updated.firstName, "Mario");
-  assert.equal(updated.lastName, "Bianchi");
-  assert.equal(updated.catalogTotalCents, 4050);
+  assert.equal(updated.firstName, "Mauro");
+  assert.equal(updated.lastName, "Rossi");
+  assert.equal(updated.catalogTotalCents, 2400);
   assert.equal(updated.status, "in_lavorazione");
   assert.equal(updated.items.length, 3);
-  assert.equal(updated.items[0].productName, "Dock Controller");
-  assert.equal(updated.items[1].colorName, "Arancione");
-  assert.equal(updated.items.some((item) => item.itemType === "custom_link"), false);
-  const updatedEmail = await readFile(
-    path.join(emailOutboxDirectory, `${updated.code}.txt`),
-    "utf8",
-  );
-  assert.match(updatedEmail, /Nome: Mario/);
-  assert.match(updatedEmail, /Dock Controller/);
-  assert.doesNotMatch(updatedEmail, /MakerWorld/);
+  assert.equal(updated.items[0].productName, "Vaso Orbitale");
+  assert.equal(updated.items.some((item) => item.itemType === "custom_link"), true);
 
   const updatedCustomFile = updated.items.find((item) => item.itemType === "custom_file");
   assert.equal(
