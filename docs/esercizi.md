@@ -59,3 +59,49 @@ Al termine dovresti saper rispondere:
 3. A cosa serve `.gitignore`?
 4. Qual e la differenza tra `npm.cmd run dev` e `npm.cmd start`?
 5. Perche un test avvia il server su una porta casuale?
+
+## Fase 2 - Catalogo Statico
+
+### 1. Leggi La Gerarchia HTML
+
+Apri `public/index.html` e scrivi l'albero dei titoli nell'ordine in cui compaiono. Verifica che non si passi da `h1` direttamente a `h3` senza un `h2` di sezione.
+
+Obiettivo: distinguere struttura semantica e dimensione grafica.
+
+### 2. Prova Lo Skip Link
+
+Ricarica la pagina e premi il tasto `Tab` senza usare il mouse. Il collegamento "Vai al contenuto" deve apparire. Premendo `Invio`, il focus logico deve raggiungere il contenuto principale.
+
+Concetto ServiceNow: progettare interfacce utilizzabili anche tramite tastiera.
+
+### 3. Modifica Una Variabile CSS
+
+In `public/styles.css`, cambia temporaneamente il valore di `--orange`. Osserva quanti elementi vengono aggiornati senza modificare le singole regole, poi ripristina il valore originale.
+
+Obiettivo: comprendere variabili, ereditarieta e riutilizzo.
+
+### 4. Simula Uno Schermo Mobile
+
+Apri gli strumenti per sviluppatori del browser e imposta una larghezza di `375px`. Verifica intestazione, titoli, schede prodotto e footer. Ripeti a `768px` e `1440px`.
+
+Annota quali media query sono attive in ogni caso.
+
+### 5. Crea Un Terzo Prodotto Temporaneo
+
+Duplica una scheda `article`, cambia `data-product`, nome, prezzo e descrizione. Esegui i test e osserva perche uno fallisce. Aggiorna temporaneamente l'aspettativa da due a tre prodotti, poi annulla l'esperimento.
+
+Obiettivo: vedere come un test renda esplicito un requisito.
+
+### 6. Ispeziona Una Risorsa Statica
+
+Apri la scheda Network degli strumenti per sviluppatori e ricarica la pagina. Trova la richiesta a `vaso-orbitale.svg` e osserva URL, codice HTTP e content type.
+
+Concetto ServiceNow: ogni risorsa del browser viene ottenuta tramite una richiesta HTTP.
+
+## Autovalutazione Della Fase 2
+
+1. Perche ogni prodotto usa un elemento `article`?
+2. Qual e la differenza tra `alt` di un'immagine e testo visibile?
+3. Cosa cambia sotto gli `860px`?
+4. Perche non sono presenti pulsanti di configurazione ancora inattivi?
+5. Quale vantaggio offre una custom property CSS?

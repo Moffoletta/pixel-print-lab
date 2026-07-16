@@ -25,10 +25,27 @@ test("espone lo stato di salute del server", async () => {
   assert.deepEqual(await response.json(), { status: "ok" });
 });
 
-test("serve la pagina pubblica", async () => {
+test("serve la pagina pubblica con un catalogo accessibile", async () => {
   const response = await fetch(baseUrl);
   const page = await response.text();
+  const products = page.match(/data-product=/g) ?? [];
 
   assert.equal(response.status, 200);
-  assert.match(page, /Pixel Print Lab/);
+  assert.match(page, /<html lang="it">/);
+  assert.match(page, /<main id="contenuto">/);
+  assert.match(page, /<h1 id="titolo-principale">/);
+  assert.match(page, /Vai al contenuto/);
+  assert.equal(products.length, 2);
+  assert.match(page, /Vaso Orbitale/);
+  assert.match(page, /Dock Controller/);
+});
+
+test("serve le immagini dei prodotti", async () => {
+  const paths = ["/images/vaso-orbitale.svg", "/images/supporto-controller.svg"];
+  const responses = await Promise.all(paths.map((path) => fetch(`${baseUrl}${path}`)));
+
+  for (const response of responses) {
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type"), /image\/svg\+xml/);
+  }
 });

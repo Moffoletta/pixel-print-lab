@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title description" shape-rendering="crispEdges">
+  <title id="title">Vaso Orbitale</title>
+  <desc id="description">Vaso geometrico arancione su una griglia tecnica.</desc>
+  <rect width="640" height="480" fill="#f7c9ad"/>
+  <g stroke="#17201a" stroke-width="4" opacity=".15">
+    <path d="M0 80H640M0 160H640M0 240H640M0 320H640M0 400H640"/>
+    <path d="M80 0V480M160 0V480M240 0V480M320 0V480M400 0V480M480 0V480M560 0V480"/>
+  </g>
+  <path d="M210 112H430L410 160H230Z" fill="#17201a"/>
+  <path d="M230 160H410L448 392H192Z" fill="#ff6534" stroke="#17201a" stroke-width="12"/>
+  <path d="M230 160L320 200L192 392Z" fill="#e94d25"/>
+  <path d="M410 160L320 200L448 392Z" fill="#ff8a55"/>
+  <path d="M230 160L320 200L410 160" fill="none" stroke="#17201a" stroke-width="8"/>
+  <path d="M192 392H448" stroke="#17201a" stroke-width="16"/>
+  <rect x="96" y="80" width="24" height="24" fill="#17201a"/>
+  <rect x="520" y="336" width="16" height="16" fill="#17201a"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title description" shape-rendering="crispEdges">
+  <title id="title">Dock Controller</title>
+  <desc id="description">Supporto blu per controller su una griglia tecnica.</desc>
+  <rect width="640" height="480" fill="#bfcfff"/>
+  <g stroke="#17201a" stroke-width="4" opacity=".14">
+    <path d="M0 80H640M0 160H640M0 240H640M0 320H640M0 400H640"/>
+    <path d="M80 0V480M160 0V480M240 0V480M320 0V480M400 0V480M480 0V480M560 0V480"/>
+  </g>
+  <path d="M190 376H450V416H190Z" fill="#17201a"/>
+  <path d="M250 192H390L430 376H210Z" fill="#4277ff" stroke="#17201a" stroke-width="12"/>
+  <path d="M270 112H370V272H270Z" fill="#6d95ff" stroke="#17201a" stroke-width="12"/>
+  <path d="M220 176H420V240H220Z" fill="#17201a"/>
+  <path d="M244 188H396V220H244Z" fill="#f3f0e6"/>
+  <rect x="292" y="80" width="56" height="32" fill="#17201a"/>
+  <rect x="112" y="120" width="20" height="20" fill="#17201a"/>
+  <rect x="508" y="304" width="28" height="28" fill="#17201a"/>
+</svg>

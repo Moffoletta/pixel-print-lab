@@ -3,21 +3,116 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Richiedi una stampa 3D da catalogo o da un file STL.">
-    <title>Pixel Print Lab</title>
+    <meta name="description" content="Scegli un modello o proponi il tuo file STL per una stampa 3D.">
+    <title>Pixel Print Lab | Stampe 3D</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <main class="shell">
-      <p class="eyebrow">Fase 1 / Fondamenta</p>
-      <h1>Pixel Print Lab</h1>
-      <p class="intro">Il laboratorio digitale per le tue prossime stampe 3D.</p>
-      <div class="printer" aria-hidden="true">
-        <span class="printer__head"></span>
-        <span class="printer__model"></span>
-        <span class="printer__bed"></span>
-      </div>
-      <p class="status"><span></span> Ambiente locale operativo</p>
+    <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Pixel Print Lab, pagina iniziale">
+        <span class="brand__mark" aria-hidden="true"></span>
+        <span>Pixel Print Lab</span>
+      </a>
+      <nav aria-label="Navigazione principale">
+        <a href="#catalogo">Catalogo</a>
+        <a href="#modello-personale">Il tuo modello</a>
+      </nav>
+      <p class="cart-status" aria-label="Il carrello contiene zero elementi">
+        <span aria-hidden="true">[</span> Carrello 00 <span aria-hidden="true">]</span>
+      </p>
+    </header>
+
+    <main id="contenuto">
+      <section class="hero" aria-labelledby="titolo-principale">
+        <div class="hero__copy">
+          <p class="kicker"><span aria-hidden="true"></span> Stampante pronta</p>
+          <h1 id="titolo-principale">Idee reali,<br><em>strato dopo strato.</em></h1>
+          <p class="hero__intro">Scegli un oggetto dal laboratorio oppure porta il tuo file. Io penso alla stampa, tu scegli colore e quantita.</p>
+          <a class="pixel-button" href="#catalogo">Esplora i modelli <span aria-hidden="true">↓</span></a>
+        </div>
+
+        <div class="print-scene" aria-label="Illustrazione pixel art di una stampante 3D in funzione" role="img">
+          <div class="print-scene__screen">PRINT_01</div>
+          <div class="print-scene__rail"></div>
+          <div class="print-scene__head"></div>
+          <div class="print-scene__filament"></div>
+          <div class="print-scene__object"></div>
+          <div class="print-scene__bed"></div>
+          <div class="print-scene__progress"><span></span></div>
+          <p>Livello 024 / 180</p>
+        </div>
+      </section>
+
+      <section class="catalog" id="catalogo" aria-labelledby="titolo-catalogo">
+        <header class="section-heading">
+          <div>
+            <p class="section-number">01 / Catalogo</p>
+            <h2 id="titolo-catalogo">Scegli la prossima stampa</h2>
+          </div>
+          <p>Due modelli di esempio. Il catalogo definitivo verra gestito dal pannello amministrativo.</p>
+        </header>
+
+        <div class="product-grid">
+          <article class="product-card" data-product="vaso-orbitale">
+            <div class="product-card__visual">
+              <p class="product-card__code">MOD_001</p>
+              <img src="/images/vaso-orbitale.svg" width="640" height="480" alt="Vaso arancione sfaccettato su una griglia tecnica">
+              <span class="product-card__view">Anteprima</span>
+            </div>
+            <div class="product-card__body">
+              <div>
+                <p class="product-card__type">Casa / Decorazione</p>
+                <h3>Vaso Orbitale</h3>
+              </div>
+              <p class="product-card__price"><data value="12.00">&euro; 12,00</data></p>
+              <p class="product-card__description">Un piccolo vaso geometrico, pensato per fiori secchi e scrivanie con poco spazio.</p>
+              <dl class="product-card__specs">
+                <div><dt>Altezza</dt><dd>14 cm</dd></div>
+                <div><dt>Materiale</dt><dd>PLA</dd></div>
+              </dl>
+            </div>
+          </article>
+
+          <article class="product-card product-card--blue" data-product="supporto-controller">
+            <div class="product-card__visual">
+              <p class="product-card__code">MOD_002</p>
+              <img src="/images/supporto-controller.svg" width="640" height="480" alt="Supporto blu per controller rappresentato in pixel art">
+              <span class="product-card__view">Anteprima</span>
+            </div>
+            <div class="product-card__body">
+              <div>
+                <p class="product-card__type">Desk / Gaming</p>
+                <h3>Dock Controller</h3>
+              </div>
+              <p class="product-card__price"><data value="9.50">&euro; 9,50</data></p>
+              <p class="product-card__description">Supporto inclinato per tenere il controller visibile, stabile e sempre a portata di mano.</p>
+              <dl class="product-card__specs">
+                <div><dt>Larghezza</dt><dd>9 cm</dd></div>
+                <div><dt>Materiale</dt><dd>PLA</dd></div>
+              </dl>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="custom-model" id="modello-personale" aria-labelledby="titolo-modello-personale">
+        <div class="custom-model__icon" aria-hidden="true">
+          <span>.STL</span>
+        </div>
+        <div>
+          <p class="section-number">02 / Fuori catalogo</p>
+          <h2 id="titolo-modello-personale">Hai gia un modello?</h2>
+          <p>Potrai caricare un file STL fino a 50 MB oppure indicare un link da Printables, Thingiverse, MakerWorld o Cults3D.</p>
+        </div>
+        <p class="custom-model__status">Funzione in arrivo</p>
+      </section>
     </main>
+
+    <footer class="site-footer">
+      <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
+      <p>Progetto locale <span aria-hidden="true">[fase 02]</span></p>
+    </footer>
   </body>
 </html>

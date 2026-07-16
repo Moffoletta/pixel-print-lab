@@ -6,17 +6,9 @@ Ultimo aggiornamento: 16 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. La fase 1 e conclusa.
+- Nessuna attivita. La fase 2 e conclusa.
 
 ## Da fare
-
-### Fase 2 - Catalogo statico
-
-- [ ] Definire la struttura completa della pagina pubblica.
-- [ ] Creare due prodotti dimostrativi.
-- [ ] Costruire la griglia responsive del catalogo.
-- [ ] Definire i componenti visuali pixel art di base.
-- [ ] Verificare accessibilita e utilizzo mobile.
 
 ### Fase 3 - Database e API
 
@@ -40,6 +32,16 @@ Ultimo aggiornamento: 16 luglio 2026.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Fase 2 - Catalogo statico
+
+- [x] Definita la struttura completa della pagina pubblica.
+- [x] Creati due prodotti dimostrativi con immagini SVG.
+- [x] Costruita la griglia responsive del catalogo.
+- [x] Definiti i componenti visuali pixel art di base.
+- [x] Aggiunte navigazione semantica e scorciatoia al contenuto.
+- [x] Verificate le viste desktop e a larghezza ridotta.
+- [x] Aggiornati test, guida tecnica ed esercizi.
 
 ### Fase 1 - Fondamenta
 
