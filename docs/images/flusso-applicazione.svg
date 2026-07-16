@@ -58,7 +58,7 @@
     <text x="390" y="290" class="node-title">Sito pubblico</text>
     <text x="390" y="320" class="node-copy">Catalogo e viewer STL/3MF</text>
     <text x="390" y="344" class="node-copy">Carrello in localStorage</text>
-    <text x="390" y="368" class="node-copy">Upload o link modello</text>
+    <text x="390" y="368" class="node-copy">Tracking pubblico codice/stato</text>
   </g>
 
   <g filter="url(#shadow)">
@@ -66,7 +66,7 @@
     <text x="735" y="270" class="dark-title">API pubbliche</text>
     <text x="735" y="305" class="dark-copy">/api/products</text>
     <text x="735" y="329" class="dark-copy">/api/colors</text>
-    <text x="735" y="353" class="dark-copy">/api/orders</text>
+    <text x="735" y="353" class="dark-copy">/api/orders GET + POST</text>
   </g>
 
   <g filter="url(#shadow)">
@@ -81,7 +81,7 @@
     <rect x="1340" y="215" width="160" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
     <text x="1364" y="278" class="node-title">Esito</text>
     <text x="1364" y="310" class="node-copy">Codice</text>
-    <text x="1364" y="334" class="node-copy">richiesta</text>
+    <text x="1364" y="334" class="node-copy">e stato</text>
     <rect x="1364" y="350" width="94" height="8" fill="#ff6534"/>
   </g>
 
@@ -109,7 +109,7 @@
     <rect x="365" y="597" width="250" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
     <rect x="365" y="597" width="250" height="35" fill="#ff7547"/>
     <text x="390" y="672" class="node-title">Control Room</text>
-    <text x="390" y="702" class="node-copy">Gestione ordini</text>
+    <text x="390" y="702" class="node-copy">Ordini e stati</text>
     <text x="390" y="726" class="node-copy">Prodotti e colori</text>
     <text x="390" y="750" class="node-copy">Immagini e STL</text>
   </g>
@@ -135,7 +135,7 @@
     <rect x="1340" y="597" width="160" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
     <text x="1364" y="660" class="node-title">Risultato</text>
     <text x="1364" y="692" class="node-copy">Catalogo</text>
-    <text x="1364" y="716" class="node-copy">aggiornato</text>
+    <text x="1364" y="716" class="node-copy">e stati</text>
     <rect x="1364" y="733" width="94" height="8" fill="#68a0ff"/>
   </g>
 
@@ -158,6 +158,6 @@
     <text x="322" y="5" class="small">Flusso amministrativo</text>
     <line x1="580" y1="0" x2="634" y2="0" class="data-flow"/>
     <text x="652" y="5" class="small">Persistenza e file</text>
-    <text x="1100" y="5" class="small">SUPPORTO 3MF / 17-07-2026</text>
+    <text x="1085" y="5" class="small">TRACKING PUBBLICO / 17-07-2026</text>
   </g>
 </svg>

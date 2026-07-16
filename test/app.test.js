@@ -141,6 +141,9 @@ test("serve la pagina pubblica con un catalogo accessibile", async () => {
   assert.match(page, /<h1 id="titolo-principale">/);
   assert.match(page, /Vai al contenuto/);
   assert.match(page, /id="product-list"/);
+  assert.match(page, /id="stato-richieste"/);
+  assert.match(page, /id="request-list"/);
+  assert.match(page, /id="request-template"/);
   assert.match(page, /id="product-template"/);
   assert.match(page, /id="cart-dialog"/);
   assert.match(page, /id="cart-item-template"/);
@@ -224,7 +227,7 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 5);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 6);
 });
 
 test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli ID", () => {
@@ -257,6 +260,11 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
       CREATE TABLE order_items (
         id INTEGER PRIMARY KEY, item_type TEXT NOT NULL, model_filename TEXT
       );
+      CREATE TABLE orders (
+        id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL, catalog_total_cents INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
       INSERT INTO products VALUES (
         7, 'LEGACY', 'legacy', 'Legacy', 'Test', 'Dato esistente', 500,
         '/images/legacy.png', 'Legacy', 'Lato', '5 cm', 'PLA', NULL, 1, 10,
@@ -266,6 +274,8 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
         9, 'Legacy', '#123456', 1, 10, '2025-01-01 10:00:00', '2025-02-01 10:00:00'
       );
       INSERT INTO order_items (id, item_type, model_filename) VALUES (1, 'custom_file', 'legacy.stl');
+      INSERT INTO orders (id, code, first_name, last_name, catalog_total_cents)
+      VALUES (1, 'LEGACY-ORDER', 'Nome', 'Storico', 0);
     `);
 
     const productBefore = legacyDatabase.prepare("SELECT * FROM products").get();
@@ -277,7 +287,8 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'products'").get().sql, /AUTOINCREMENT/);
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
     assert.equal(legacyDatabase.prepare("SELECT model_format FROM order_items WHERE id = 1").get().model_format, "stl");
-    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 5);
+    assert.equal(legacyDatabase.prepare("SELECT status FROM orders WHERE id = 1").get().status, "in_attesa");
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 6);
     legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
     const nextId = Number(legacyDatabase.prepare(`
       INSERT INTO products (
@@ -661,6 +672,7 @@ endsolid order`;
   assert.equal(order.first_name, "Mauro");
   assert.equal(order.last_name, "Rossi");
   assert.equal(order.catalog_total_cents, 2400);
+  assert.equal(order.status, "in_attesa");
   assert.equal(items.length, 3);
   assert.equal(items[0].product_name, "Vaso Orbitale");
   assert.equal(items[0].unit_price_cents, 1200);
@@ -679,6 +691,31 @@ endsolid order`;
   assert.match(email, /ordine-personale\.stl/);
   assert.match(email, /https:\/\/www\.makerworld\.com\/en\/models\/123-test/);
   assert.match(email, /Totale catalogo: 24,00 EUR/);
+});
+
+test("espone pubblicamente soltanto codice e stato in ordine recente", async () => {
+  const insert = database.prepare(`
+    INSERT INTO orders (code, first_name, last_name, catalog_total_cents, status, created_at)
+    VALUES (?, 'Privato', 'Nascosto', 9999, ?, '2099-01-01 10:00:00')
+  `);
+  const firstId = Number(insert.run("PPL-PUBLIC-OLDER", "completato").lastInsertRowid);
+  const secondId = Number(insert.run("PPL-PUBLIC-NEWER", "in_lavorazione").lastInsertRowid);
+
+  const response = await fetch(`${baseUrl}/api/orders`);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.data.slice(0, 2), [
+    { code: "PPL-PUBLIC-NEWER", status: "in_lavorazione" },
+    { code: "PPL-PUBLIC-OLDER", status: "completato" },
+  ]);
+  assert.deepEqual(Object.keys(body.data[0]), ["code", "status"]);
+  assert.doesNotMatch(JSON.stringify(body), /Privato|Nascosto|9999|created_at|first_name|items/i);
+  assert.throws(
+    () => database.prepare("UPDATE orders SET status = 'non_valido' WHERE id = ?").run(firstId),
+    /CHECK constraint failed/,
+  );
+
+  database.prepare("DELETE FROM orders WHERE id IN (?, ?)").run(firstId, secondId);
 });
 
 test("rifiuta richieste manipolate senza creare record", async () => {
@@ -902,6 +939,7 @@ endsolid catalog`;
 test("protegge le API amministrative e gestisce il ciclo completo di un ordine", async () => {
   const unauthorized = await fetch(`${baseUrl}/api/admin/orders`);
   assert.equal(unauthorized.status, 401);
+  assert.equal((await fetch(`${baseUrl}/api/admin/orders/1/status`, { method: "PATCH" })).status, 401);
 
   const wrongLogin = await fetch(`${baseUrl}/api/admin/login`, {
     method: "POST",
@@ -941,16 +979,40 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   assert.equal(listResponse.status, 200);
   assert.equal(list.count, 1);
   assert.equal(list.data[0].itemCount, 3);
+  assert.equal(list.data[0].status, "in_attesa");
   const orderId = list.data[0].id;
 
   const detailResponse = await adminFetch(`/api/admin/orders/${orderId}`);
   const detail = (await detailResponse.json()).data;
   const customFile = detail.items.find((item) => item.itemType === "custom_file");
+  assert.equal(detail.status, "in_attesa");
   assert.equal(detail.items.length, 3);
   assert.equal(
     (await fetch(`${baseUrl}/api/admin/orders/${orderId}/items/${customFile.id}/model`)).status,
     401,
   );
+
+  const invalidStatus = await adminFetch(`/api/admin/orders/${orderId}/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "inventato" }),
+  });
+  assert.equal(invalidStatus.status, 400);
+  assert.equal((await invalidStatus.json()).error.code, "INVALID_ORDER_STATUS");
+  assert.equal((await adminFetch(`/api/admin/orders/${orderId}junk/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "in_attesa" }),
+  })).status, 404);
+
+  const statusUpdate = await adminFetch(`/api/admin/orders/${orderId}/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "in_lavorazione" }),
+  });
+  assert.equal(statusUpdate.status, 200);
+  const publicOrders = (await (await fetch(`${baseUrl}/api/orders`)).json()).data;
+  assert.equal(publicOrders.find((order) => order.code === detail.code).status, "in_lavorazione");
   assert.equal(
     (await adminFetch(`/api/admin/orders/${orderId}/items/${customFile.id}/model`)).status,
     200,
@@ -975,6 +1037,7 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   assert.equal(updated.firstName, "Mario");
   assert.equal(updated.lastName, "Bianchi");
   assert.equal(updated.catalogTotalCents, 4050);
+  assert.equal(updated.status, "in_lavorazione");
   assert.equal(updated.items.length, 3);
   assert.equal(updated.items[0].productName, "Dock Controller");
   assert.equal(updated.items[1].colorName, "Arancione");
@@ -997,6 +1060,7 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, 0);
   assert.equal((await readdir(orderFileDirectory)).length, 0);
   assert.equal((await readdir(emailOutboxDirectory)).length, 0);
+  assert.equal((await (await fetch(`${baseUrl}/api/orders`)).json()).data.some((order) => order.code === detail.code), false);
 
   const logout = await adminFetch("/api/admin/logout", { method: "POST" });
   assert.equal(logout.status, 204);

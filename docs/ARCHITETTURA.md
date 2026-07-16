@@ -2,7 +2,7 @@
 
 Questo documento rappresenta la struttura generale dell'applicazione. Deve essere aggiornato insieme al codice quando cambiano componenti, dipendenze, API, database, directory di storage o flussi principali.
 
-Ultimo aggiornamento: 17 luglio 2026, supporto 3MF.
+Ultimo aggiornamento: 17 luglio 2026, tracciamento pubblico.
 
 ## Diagramma Di Flusso
 
@@ -21,6 +21,7 @@ flowchart LR
     Pubblica[Interfaccia pubblica]
     Pannello[Pannello Control Room]
     Pubblica --> CatalogoUI[Catalogo e viewer STL/3MF]
+    Pubblica --> TrackingUI[Tracking pubblico codice/stato]
     Pubblica --> Carrello[Carrello locale]
     Pannello --> OrdiniUI[Gestione ordini]
     Pannello --> CatalogoAdmin[Gestione prodotti e colori]
@@ -50,6 +51,7 @@ flowchart LR
   Cliente --> Pubblica
   Admin --> Pannello
   CatalogoUI --> API
+  TrackingUI --> API
   Carrello --> API
   OrdiniUI --> APIAdmin
   CatalogoAdmin --> APIAdmin
@@ -135,6 +137,9 @@ sequenceDiagram
   E->>D: Rivalida e salva ordine e snapshot
   E->>S: Rende permanenti i file e genera email
   E-->>B: Restituisce il codice richiesta
+  B->>E: GET /api/orders
+  E->>D: Legge solo codice e stato
+  E-->>B: Elenco pubblico aggiornato
 ```
 
 ## Flusso Amministrativo
@@ -159,6 +164,9 @@ sequenceDiagram
   E->>S: Valida e salva i nuovi file
   E->>D: Aggiorna il catalogo
   E->>S: Elimina gli asset sostituiti
+  A->>P: Cambia stato richiesta
+  P->>E: PATCH stato protetto
+  E->>D: Aggiorna soltanto lo stato
   Note over E,D: Gli snapshot degli ordini restano invariati
 ```
 
@@ -207,6 +215,7 @@ Pixel Print Lab/
 - I file degli ordini sono accessibili soltanto tramite API protette.
 - Gli asset del catalogo sono pubblici, ma possono essere caricati soltanto dall'amministratore.
 - Gli ordini conservano snapshot indipendenti dalle modifiche al catalogo.
+- Il tracking pubblico espone soltanto codice completo e stato; il codice e un identificatore pubblico, non un segreto.
 
 ## Regola Di Manutenzione
 

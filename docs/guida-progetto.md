@@ -14,7 +14,7 @@ La pagina pubblica permettera di scegliere modelli dal catalogo oppure fornire u
 - Scelta di un colore globale e di una quantita tra 1 e 99 per elemento.
 - Carrello con prodotti del catalogo e modelli personali.
 - Nome e cognome come unici dati identificativi.
-- Conferma con codice univoco, senza stato dell'ordine.
+- Conferma con codice univoco e tracciamento pubblico dello stato.
 - Pannello protetto per un solo amministratore.
 - Statistiche anonime e senza cookie.
 - Interfaccia chiara, responsive e interamente in stile pixel art.
@@ -780,7 +780,7 @@ La migrazione 3 crea `orders` e `order_items`.
 - totale dei soli prodotti di catalogo;
 - data di creazione.
 
-Non esiste uno stato dell'ordine, coerentemente con i requisiti attuali. La richiesta rimane presente finche non verra eliminata manualmente dal futuro pannello amministrativo.
+In questa fase iniziale non esisteva ancora uno stato dell'ordine. Il tracciamento viene aggiunto successivamente senza modificare gli snapshot creati qui.
 
 `order_items` contiene una riga per ogni configurazione e distingue:
 
@@ -1010,7 +1010,7 @@ DELETE /api/admin/orders/:id
 GET    /api/admin/orders/:orderId/items/:itemId/model
 ```
 
-Non esistono API pubbliche per leggere ordini, nomi o file permanenti.
+Nomi, righe e file permanenti non hanno API pubbliche. L'endpoint di tracking aggiunto successivamente espone soltanto codice completo e stato.
 
 ### Elenco E Dettaglio
 
@@ -1060,7 +1060,7 @@ Eliminando un intero ordine:
 - viene eliminata l'email simulata;
 - l'ordine scompare dall'archivio.
 
-L'operazione non usa uno stato o un cestino ed e definitiva. L'interfaccia richiede una conferma esplicita.
+La cancellazione non usa un cestino ed e definitiva. L'interfaccia richiede una conferma esplicita.
 
 ### Interfaccia Control Room
 
@@ -1247,3 +1247,65 @@ I test coprono 3MF generici, Bambu multi-piatto, riuso dello stesso oggetto tra 
 ## 28. Esito Del Supporto 3MF
 
 Il flusso dei modelli personali gestisce STL e 3MF dall'upload al download amministrativo. I file originali vengono conservati, il primo piatto e visualizzato dopo un'ispezione limitata e il confronto dimensionale resta volutamente indipendente dalla stampante usata.
+
+## 29. Tracciamento Pubblico Delle Richieste
+
+### Stato Persistente
+
+La migrazione 6 aggiunge a `orders` il campo `status`, con valore iniziale `in_attesa` e vincolo SQLite limitato a:
+
+```text
+in_attesa
+in_lavorazione
+completato
+```
+
+Anche gli ordini esistenti ricevono `in_attesa`. Il database rifiuta valori mancanti o non previsti.
+
+### API Pubblica Minima
+
+`GET /api/orders` restituisce tutte le richieste ancora presenti, dalla piu recente alla piu vecchia, usando una selezione esplicita:
+
+```json
+{
+  "data": [
+    { "code": "PPL-20260717-ABC123", "status": "in_lavorazione" }
+  ]
+}
+```
+
+Non vengono esposti ID interni, nomi, date, totali, quantita, colori, modelli o file. Il codice completo e intenzionalmente pubblico e non deve essere considerato una password o un token di autenticazione.
+
+Le richieste completate restano nell'elenco. La cancellazione amministrativa elimina la riga dal database e quindi anche dal tracking pubblico.
+
+### Aggiornamento Amministrativo
+
+Il pannello usa un endpoint dedicato:
+
+```text
+PATCH /api/admin/orders/:id/status
+```
+
+Separare lo stato dalla modifica completa evita di riscrivere elementi, snapshot, file o email. L'endpoint richiede la sessione admin, valida esattamente l'ID e accetta soltanto i tre valori previsti.
+
+### Interfaccia Pubblica
+
+La pagina mostra una colonna con codice completo e descrizione testuale dello stato. `in_lavorazione` aggiunge una piccola stampante a blocchi decorativa; il testo resta sufficiente anche senza colore o animazione.
+
+La colonna precede il catalogo nel DOM. Sotto 860 px le due colonne diventano sezioni verticali nello stesso ordine. Tra 861 e 1050 px i prodotti passano a una colonna per mantenere una larghezza leggibile.
+
+`prefers-reduced-motion` disattiva le animazioni non essenziali. Un live region separato annuncia gli aggiornamenti senza rendere parlante l'intero elenco.
+
+### Aggiornamento Periodico
+
+Il browser aggiorna il tracking dopo l'invio di una richiesta, ogni 45 secondi mentre la scheda e visibile e quando la pagina torna in primo piano. Un contatore scarta risposte obsolete e impedisce che richieste sovrapposte ripristinino stati precedenti.
+
+L'elenco viene ricostruito soltanto quando la firma dei dati cambia. Un errore del tracking non blocca catalogo, carrello o invio.
+
+### Limiti
+
+Il requisito mantiene tutte le richieste visibili fino alla cancellazione. Di conseguenza l'elenco puo crescere nel tempo e rende pubblici volume e avanzamento delle richieste. Per un uso piu ampio saranno utili paginazione, alias pubblici o un sistema di ricerca individuale.
+
+## 30. Esito Del Tracciamento
+
+Ogni richiesta dispone ora di uno stato controllato dal pannello e visibile nella pagina principale. La serializzazione pubblica resta separata dai dati amministrativi e il codice completo e trattato esplicitamente come identificatore pubblico.

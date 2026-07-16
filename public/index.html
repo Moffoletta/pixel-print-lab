@@ -24,6 +24,7 @@
         <span>Pixel Print Lab</span>
       </a>
       <nav aria-label="Navigazione principale">
+        <a href="#stato-richieste">Stato</a>
         <a href="#catalogo">Catalogo</a>
         <a href="#modello-personale">Il tuo modello</a>
       </nav>
@@ -54,49 +55,70 @@
       </section>
 
       <section class="catalog" id="catalogo" aria-labelledby="titolo-catalogo">
-        <header class="section-heading">
-          <div>
-            <p class="section-number">01 / Catalogo</p>
-            <h2 id="titolo-catalogo">Scegli la prossima stampa</h2>
-          </div>
-          <p>Due modelli di esempio. Il catalogo definitivo verra gestito dal pannello amministrativo.</p>
-        </header>
+        <div class="catalog-layout">
+          <aside class="request-tracker" id="stato-richieste" aria-labelledby="tracking-title">
+            <p class="section-number">01 / Coda</p>
+            <h2 id="tracking-title">Stato richieste</h2>
+            <p class="request-tracker__intro">Codici pubblici e avanzamento, senza dati personali.</p>
+            <p class="request-tracker__status" id="tracking-status" role="status">Caricamento richieste...</p>
+            <p class="visually-hidden" id="tracking-announcement" aria-live="polite"></p>
+            <ol class="request-list" id="request-list"></ol>
+          </aside>
 
-        <p class="catalog-status" id="catalog-status" role="status">Caricamento catalogo...</p>
-        <div class="product-grid" id="product-list" aria-live="polite" aria-busy="true"></div>
-
-        <template id="product-template">
-          <article class="product-card">
-            <div class="product-card__visual">
-              <p class="product-card__code" data-field="code"></p>
-              <img width="640" height="480" data-field="image">
-              <button class="product-card__view" data-field="view-model" type="button">Apri 3D</button>
-            </div>
-            <div class="product-card__body">
+          <div class="catalog-content">
+            <header class="section-heading">
               <div>
-                <p class="product-card__type" data-field="category"></p>
-                <h3 data-field="name"></h3>
+                <p class="section-number">02 / Catalogo</p>
+                <h2 id="titolo-catalogo">Scegli la prossima stampa</h2>
               </div>
-              <p class="product-card__price"><data data-field="price"></data></p>
-              <p class="product-card__description" data-field="description"></p>
-              <dl class="product-card__specs">
-                <div><dt data-field="dimension-label"></dt><dd data-field="dimension-value"></dd></div>
-                <div><dt>Materiale</dt><dd data-field="material"></dd></div>
-              </dl>
-              <form class="product-card__config" data-field="config-form">
-                <fieldset>
-                  <legend>Colore</legend>
-                  <div class="color-options" data-field="color-options"></div>
-                </fieldset>
-                <label class="quantity-field">
-                  <span>Quantita</span>
-                  <input data-field="quantity" type="number" min="1" max="99" value="1" inputmode="numeric" required>
-                </label>
-                <button class="add-button" type="submit">Aggiungi al carrello</button>
-                <p class="add-feedback" data-field="feedback" role="status"></p>
-              </form>
-            </div>
-          </article>
+              <p>Due modelli di esempio. Il catalogo definitivo verra gestito dal pannello amministrativo.</p>
+            </header>
+
+            <p class="catalog-status" id="catalog-status" role="status">Caricamento catalogo...</p>
+            <div class="product-grid" id="product-list" aria-live="polite" aria-busy="true"></div>
+
+            <template id="product-template">
+              <article class="product-card">
+                <div class="product-card__visual">
+                  <p class="product-card__code" data-field="code"></p>
+                  <img width="640" height="480" data-field="image">
+                  <button class="product-card__view" data-field="view-model" type="button">Apri 3D</button>
+                </div>
+                <div class="product-card__body">
+                  <div>
+                    <p class="product-card__type" data-field="category"></p>
+                    <h3 data-field="name"></h3>
+                  </div>
+                  <p class="product-card__price"><data data-field="price"></data></p>
+                  <p class="product-card__description" data-field="description"></p>
+                  <dl class="product-card__specs">
+                    <div><dt data-field="dimension-label"></dt><dd data-field="dimension-value"></dd></div>
+                    <div><dt>Materiale</dt><dd data-field="material"></dd></div>
+                  </dl>
+                  <form class="product-card__config" data-field="config-form">
+                    <fieldset>
+                      <legend>Colore</legend>
+                      <div class="color-options" data-field="color-options"></div>
+                    </fieldset>
+                    <label class="quantity-field">
+                      <span>Quantita</span>
+                      <input data-field="quantity" type="number" min="1" max="99" value="1" inputmode="numeric" required>
+                    </label>
+                    <button class="add-button" type="submit">Aggiungi al carrello</button>
+                    <p class="add-feedback" data-field="feedback" role="status"></p>
+                  </form>
+                </div>
+              </article>
+            </template>
+          </div>
+        </div>
+
+        <template id="request-template">
+          <li class="request-item">
+            <span class="request-item__code" data-field="request-code"></span>
+            <strong data-field="request-status"></strong>
+            <span class="request-item__printer" data-field="request-animation" aria-hidden="true"><i></i><i></i><i></i></span>
+          </li>
         </template>
       </section>
 
@@ -106,7 +128,7 @@
             <span>3MF</span>
           </div>
           <div>
-            <p class="section-number">02 / Fuori catalogo</p>
+            <p class="section-number">03 / Fuori catalogo</p>
             <h2 id="titolo-modello-personale">Hai gia un modello?</h2>
             <p>Carica un file STL o 3MF fino a 50 MB oppure indica un link da uno dei siti supportati.</p>
           </div>
@@ -155,7 +177,7 @@
 
     <footer class="site-footer">
       <p>Pixel Print Lab <span aria-hidden="true">/</span> Stampe 3D tra amici</p>
-      <p>Progetto locale <span aria-hidden="true">[supporto 3MF]</span></p>
+      <p>Progetto locale <span aria-hidden="true">[tracking richieste]</span></p>
     </footer>
 
     <dialog class="cart-dialog" id="cart-dialog" aria-labelledby="cart-title">

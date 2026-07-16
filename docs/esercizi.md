@@ -582,3 +582,46 @@ Inserisci in `localStorage` un elemento STL senza `modelFormat`. Ricarica la pag
 5. Quali dati vengono salvati oltre al file originale?
 6. Perche `.gcode.3mf` e escluso?
 7. Quali limiti proteggono server e browser?
+
+## Tracciamento Pubblico Delle Richieste
+
+### 1. Verifica Lo Stato Iniziale
+
+Invia una richiesta e controlla che `orders.status` sia `in_attesa` senza che il browser lo invii esplicitamente.
+
+### 2. Ispeziona L'API Pubblica
+
+Apri `/api/orders` e verifica che ogni record contenga soltanto `code` e `status`. Cerca nomi, ID interni, date, prezzi e dettagli dei modelli: non devono comparire.
+
+### 3. Cambia Stato Dal Pannello
+
+Porta una richiesta da `in_attesa` a `in_lavorazione` e poi a `completato`. Controlla database, API pubblica e pagina principale dopo ogni passaggio.
+
+### 4. Prova Un Valore Non Valido
+
+Invia manualmente uno stato non previsto al PATCH amministrativo. Confronta l'errore API con il vincolo `CHECK` del database.
+
+### 5. Verifica L'Ordinamento
+
+Crea due richieste nello stesso secondo e controlla che quella con ID maggiore appaia prima. Spiega il ruolo del secondo criterio di ordinamento.
+
+### 6. Controlla La Cancellazione
+
+Completa una richiesta e verifica che resti pubblica. Eliminala dal pannello e controlla che scompaia dal tracking.
+
+### 7. Prova Il Responsive
+
+Confronta la pagina a 1051, 1050, 861 e 860 px. Il tracking deve restare leggibile e precedere sempre il catalogo su mobile.
+
+### 8. Riduci Le Animazioni
+
+Attiva `prefers-reduced-motion` negli strumenti del browser. La stampante pixel art deve restare comprensibile tramite il testo senza continuare ad animarsi.
+
+## Autovalutazione Tracking
+
+1. Perche l'API pubblica non usa `SELECT *`?
+2. Perche il codice richiesta non deve essere considerato segreto?
+3. Perche lo stato usa un endpoint separato dalla modifica dell'ordine?
+4. Come vengono scartate risposte di polling obsolete?
+5. Quando una richiesta completata scompare dall'elenco?
+6. Quali informazioni possono essere dedotte osservando tutti i codici pubblici?

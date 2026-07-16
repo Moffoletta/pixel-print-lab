@@ -69,6 +69,17 @@
                 <strong id="order-total"></strong>
               </header>
 
+              <div class="admin-order-status">
+                <label for="order-status"><span>Stato pubblico</span>
+                  <select id="order-status">
+                    <option value="in_attesa">In attesa</option>
+                    <option value="in_lavorazione">In lavorazione</option>
+                    <option value="completato">Completato</option>
+                  </select>
+                </label>
+                <button id="save-order-status" type="button">Aggiorna stato</button>
+              </div>
+
               <div class="admin-customer">
                 <label for="order-first-name"><span>Nome</span><input id="order-first-name" maxlength="60" required></label>
                 <label for="order-last-name"><span>Cognome</span><input id="order-last-name" maxlength="60" required></label>
@@ -148,6 +159,7 @@
       <button class="order-list-item" type="button">
         <span data-field="list-code"></span>
         <strong data-field="list-name"></strong>
+        <em data-field="list-status"></em>
         <small><span data-field="list-pieces"></span> pezzi <i>/</i> <span data-field="list-date"></span></small>
       </button>
     </template>

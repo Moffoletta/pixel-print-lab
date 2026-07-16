@@ -12,6 +12,8 @@ const orderForm = document.querySelector("#order-form");
 const orderDate = document.querySelector("#order-date");
 const orderCode = document.querySelector("#order-code");
 const orderTotal = document.querySelector("#order-total");
+const orderStatusSelect = document.querySelector("#order-status");
+const saveOrderStatusButton = document.querySelector("#save-order-status");
 const firstNameInput = document.querySelector("#order-first-name");
 const lastNameInput = document.querySelector("#order-last-name");
 const adminItems = document.querySelector("#admin-items");
@@ -44,6 +46,11 @@ let products = [];
 let colors = [];
 let currentOrder;
 let selectedProductId;
+const orderStatusLabels = {
+  in_attesa: "In attesa",
+  in_lavorazione: "In lavorazione",
+  completato: "Completato",
+};
 
 async function api(path, options = {}) {
   const response = await fetch(path, options);
@@ -84,6 +91,8 @@ function renderOrderList() {
     button.dataset.orderId = order.id;
     button.querySelector('[data-field="list-code"]').textContent = order.code;
     button.querySelector('[data-field="list-name"]').textContent = `${order.firstName} ${order.lastName}`;
+    button.querySelector('[data-field="list-status"]').textContent = orderStatusLabels[order.status] ?? order.status;
+    button.querySelector('[data-field="list-status"]').dataset.status = order.status;
     button.querySelector('[data-field="list-pieces"]').textContent = order.pieceCount;
     button.querySelector('[data-field="list-date"]').textContent = formatDate(order.createdAt);
     button.classList.toggle("order-list-item--active", currentOrder?.id === order.id);
@@ -185,6 +194,7 @@ async function loadOrder(id) {
   orderDate.textContent = formatDate(currentOrder.createdAt);
   orderCode.textContent = currentOrder.code;
   orderTotal.textContent = euroFormatter.format(currentOrder.catalogTotalCents / 100);
+  orderStatusSelect.value = currentOrder.status;
   firstNameInput.value = currentOrder.firstName;
   lastNameInput.value = currentOrder.lastName;
   adminItems.replaceChildren(...currentOrder.items.map(createItemEditor));
@@ -382,6 +392,32 @@ loginForm.addEventListener("submit", async (event) => {
 logoutButton.addEventListener("click", async () => {
   await api("/api/admin/logout", { method: "POST" });
   showLogin();
+});
+
+saveOrderStatusButton.addEventListener("click", async () => {
+  if (!currentOrder) return;
+  const orderId = currentOrder.id;
+  const requestedStatus = orderStatusSelect.value;
+  saveOrderStatusButton.disabled = true;
+  orderFeedback.textContent = "";
+  orderFeedback.classList.remove("admin-feedback--error");
+  try {
+    const result = await api(`/api/admin/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: requestedStatus }),
+    });
+    if (currentOrder?.id === orderId) currentOrder.status = result.status;
+    const listOrder = orders.find((order) => order.id === orderId);
+    if (listOrder) listOrder.status = result.status;
+    renderOrderList();
+    orderFeedback.textContent = "Stato pubblico aggiornato.";
+  } catch (error) {
+    orderFeedback.textContent = error.message;
+    orderFeedback.classList.add("admin-feedback--error");
+  } finally {
+    saveOrderStatusButton.disabled = false;
+  }
 });
 
 navigationButtons.forEach((button) => {

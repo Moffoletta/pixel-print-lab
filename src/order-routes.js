@@ -22,6 +22,7 @@ export const defaultEmailOutboxDirectory = path.join(currentDirectory, "..", "st
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ORDER_ITEMS = 100;
+export const ORDER_STATUSES = new Set(["in_attesa", "in_lavorazione", "completato"]);
 
 class OrderError extends Error {
   constructor(code, message, status = 400) {
@@ -137,6 +138,11 @@ export function registerOrderRoutes(
     FROM colors
     WHERE id = ? AND active = 1
   `);
+  const listPublicOrders = database.prepare(`
+    SELECT code, status
+    FROM orders
+    ORDER BY created_at DESC, id DESC
+  `);
   const insertOrder = database.prepare(`
     INSERT INTO orders (code, first_name, last_name, catalog_total_cents)
     VALUES (@code, @firstName, @lastName, @catalogTotalCents)
@@ -159,6 +165,11 @@ export function registerOrderRoutes(
     order.items.forEach((item, index) => {
       insertItem.run({ ...item, orderId: result.lastInsertRowid, position: index + 1 });
     });
+  });
+
+  app.get("/api/orders", (_request, response) => {
+    response.setHeader("Cache-Control", "no-store");
+    response.json({ data: listPublicOrders.all() });
   });
 
   app.post("/api/orders", async (request, response) => {

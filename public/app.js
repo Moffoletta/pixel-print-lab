@@ -13,6 +13,10 @@ const CART_STORAGE_KEY = "pixel-print-lab:cart:v1";
 const productList = document.querySelector("#product-list");
 const productTemplate = document.querySelector("#product-template");
 const catalogStatus = document.querySelector("#catalog-status");
+const trackingStatus = document.querySelector("#tracking-status");
+const requestList = document.querySelector("#request-list");
+const requestTemplate = document.querySelector("#request-template");
+const trackingAnnouncement = document.querySelector("#tracking-announcement");
 const cartOpenButton = document.querySelector("#cart-open");
 const cartCount = document.querySelector("#cart-count");
 const cartDialog = document.querySelector("#cart-dialog");
@@ -58,6 +62,13 @@ let cart = readCart();
 let viewerModulePromise;
 let inspectedUpload;
 let uploadGeneration = 0;
+let publicOrdersSignature = "";
+let trackingLoadVersion = 0;
+const publicStatusLabels = {
+  in_attesa: "In attesa",
+  in_lavorazione: "In lavorazione",
+  completato: "Completato",
+};
 
 function readCart() {
   try {
@@ -334,6 +345,37 @@ async function parseApiResponse(response) {
   return body.data;
 }
 
+async function loadPublicOrders() {
+  const loadVersion = ++trackingLoadVersion;
+  try {
+    const response = await fetch("/api/orders", { cache: "no-store" });
+    const orders = await parseApiResponse(response);
+    if (loadVersion !== trackingLoadVersion) return;
+    const signature = JSON.stringify(orders);
+    trackingStatus.classList.remove("request-tracker__status--error");
+    trackingStatus.textContent = orders.length ? "" : "Nessuna richiesta presente.";
+    trackingStatus.hidden = orders.length > 0;
+    if (signature === publicOrdersSignature) return;
+    const hadPreviousData = publicOrdersSignature !== "";
+    publicOrdersSignature = signature;
+    requestList.replaceChildren();
+    orders.forEach((order) => {
+      const item = requestTemplate.content.firstElementChild.cloneNode(true);
+      item.querySelector('[data-field="request-code"]').textContent = order.code;
+      item.querySelector('[data-field="request-status"]').textContent = publicStatusLabels[order.status] ?? order.status;
+      item.querySelector('[data-field="request-animation"]').hidden = order.status !== "in_lavorazione";
+      requestList.append(item);
+    });
+    trackingAnnouncement.textContent = hadPreviousData ? "Lo stato delle richieste e stato aggiornato." : "Elenco richieste caricato.";
+  } catch (error) {
+    if (loadVersion !== trackingLoadVersion) return;
+    console.error(error);
+    trackingStatus.hidden = false;
+    trackingStatus.textContent = "Stato richieste non disponibile.";
+    trackingStatus.classList.add("request-tracker__status--error");
+  }
+}
+
 async function reconcileUploadedFiles(items) {
   const checks = await Promise.all(
     items.map(async (item) => {
@@ -535,6 +577,7 @@ checkoutForm.addEventListener("submit", async (event) => {
     checkoutFormView.hidden = true;
     orderConfirmation.hidden = false;
     confirmationCode.textContent = order.code;
+    loadPublicOrders();
   } catch (error) {
     checkoutFeedback.textContent = error.message;
     checkoutFeedback.classList.add("checkout-feedback--error");
@@ -596,3 +639,10 @@ async function loadCatalog() {
 cartOpenButton.addEventListener("click", () => cartDialog.showModal());
 updateCustomSource();
 loadCatalog();
+loadPublicOrders();
+setInterval(() => {
+  if (document.visibilityState === "visible") loadPublicOrders();
+}, 45_000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") loadPublicOrders();
+});

@@ -16,6 +16,7 @@ import {
   defaultOrderFileDirectory,
   validatePersonName,
   validateQuantity,
+  ORDER_STATUSES,
 } from "./order-routes.js";
 
 const SESSION_COOKIE = "ppl_admin_session";
@@ -265,6 +266,9 @@ export function registerAdminRoutes(
     SET first_name = @firstName, last_name = @lastName, catalog_total_cents = @catalogTotalCents
     WHERE id = @id
   `);
+  const updateOrderStatus = database.prepare(`
+    UPDATE orders SET status = ? WHERE id = ?
+  `);
   const deleteItems = database.prepare("DELETE FROM order_items WHERE order_id = ?");
   const insertItem = database.prepare(`
     INSERT INTO order_items (
@@ -506,6 +510,7 @@ export function registerAdminRoutes(
         catalogTotalCents: order.catalog_total_cents,
         itemCount: order.item_count,
         pieceCount: order.piece_count,
+        status: order.status,
         createdAt: order.created_at,
       }));
     response.json({ data: orders, count: orders.length });
@@ -522,10 +527,27 @@ export function registerAdminRoutes(
         firstName: order.first_name,
         lastName: order.last_name,
         catalogTotalCents: order.catalog_total_cents,
+        status: order.status,
         createdAt: order.created_at,
         items: listItems.all(order.id).map(serializeItem),
       },
     });
+  });
+
+  app.patch("/api/admin/orders/:id/status", requireAdmin, (request, response) => {
+    try {
+      if (!/^\d+$/.test(request.params.id)) throw new AdminError("ORDER_NOT_FOUND", "Richiesta non trovata.", 404);
+      const id = Number(request.params.id);
+      if (!ORDER_STATUSES.has(request.body?.status)) {
+        throw new AdminError("INVALID_ORDER_STATUS", "Lo stato della richiesta non e valido.");
+      }
+      if (updateOrderStatus.run(request.body.status, id).changes === 0) {
+        throw new AdminError("ORDER_NOT_FOUND", "Richiesta non trovata.", 404);
+      }
+      return response.json({ data: { id, status: request.body.status } });
+    } catch (error) {
+      return sendError(response, error);
+    }
   });
 
   app.get("/api/admin/orders/:orderId/items/:itemId/model", requireAdmin, (request, response) => {

@@ -159,6 +159,15 @@ const migrations = [
       WHERE item_type = 'custom_file' AND model_format IS NULL;
     `,
   },
+  {
+    version: 6,
+    name: "add_order_status",
+    sql: `
+      ALTER TABLE orders
+      ADD COLUMN status TEXT NOT NULL DEFAULT 'in_attesa'
+      CHECK (status IN ('in_attesa', 'in_lavorazione', 'completato'));
+    `,
+  },
 ];
 
 const products = [

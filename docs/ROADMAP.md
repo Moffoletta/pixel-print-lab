@@ -6,25 +6,13 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. Il supporto 3MF e concluso.
+- Nessuna attivita. Il tracciamento pubblico e concluso.
 
 ## Da fare
 
 - Nessuna fase selezionata. Le funzionalita successive sono nel backlog.
 
 ## Backlog
-
-### Tracciamento pubblico delle richieste
-
-- [ ] Aggiungere agli ordini gli stati `in attesa`, `in lavorazione` e `completato`.
-- [ ] Assegnare automaticamente lo stato iniziale `in attesa` e permettere i cambi successivi dal pannello.
-- [ ] Aggiungere alla pagina principale una colonna pubblica con codice richiesta e stato.
-- [ ] Ordinare le richieste dalla piu recente alla piu vecchia.
-- [ ] Mostrare il codice completo senza nome, cognome o dettagli dei modelli.
-- [ ] Mantenere visibili anche le richieste completate finche non vengono eliminate manualmente.
-- [ ] Aggiungere una piccola animazione pixel art alle richieste `in lavorazione`.
-- [ ] Su mobile trasformare la colonna in una sezione posizionata prima del catalogo.
-- [ ] Verificare privacy, accessibilita e aggiornamento dell'elenco.
 
 ### Altre funzionalita
 
@@ -33,6 +21,20 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [ ] Preparazione alla pubblicazione.
 
 ## Completato
+
+### Tracciamento pubblico delle richieste
+
+- [x] Aggiunti gli stati `in attesa`, `in lavorazione` e `completato` con vincolo SQLite.
+- [x] Assegnato automaticamente `in attesa` alle richieste nuove ed esistenti.
+- [x] Aggiunto aggiornamento stato dedicato nel pannello senza riscrivere gli snapshot.
+- [x] Esposta un'API pubblica con i soli campi `code` e `status`.
+- [x] Ordinate le richieste dalla piu recente alla piu vecchia.
+- [x] Mantenute visibili le richieste completate fino alla cancellazione manuale.
+- [x] Creata colonna pubblica con animazione pixel art per `in lavorazione`.
+- [x] Posizionato il tracking prima del catalogo su mobile.
+- [x] Aggiunti polling controllato, aggiornamento dopo l'invio e supporto reduced motion.
+- [x] Verificati privacy, autorizzazione, accessibilita, responsive e migrazione.
+- [x] Aggiornati test, guida, esercizi e architettura.
 
 ### Supporto 3MF e piatto standard
 

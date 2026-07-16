@@ -79,6 +79,7 @@
 
 .admin-login input,
 .admin-customer input,
+.admin-order-status select,
 .admin-item input,
 .admin-item select {
   width: 100%;
@@ -92,6 +93,7 @@
 
 .admin-login input:focus,
 .admin-customer input:focus,
+.admin-order-status select:focus,
 .admin-item input:focus,
 .admin-item select:focus {
   outline: 3px solid var(--blue);
@@ -277,6 +279,20 @@
   font-size: 1.1rem;
 }
 
+.order-list-item em {
+  width: fit-content;
+  padding: 0.2rem 0.35rem;
+  color: var(--ink);
+  background: #c8cec9;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.order-list-item em[data-status="in_lavorazione"] { background: var(--orange); }
+.order-list-item em[data-status="completato"] { background: #70d69a; }
+
 .order-list-item small {
   color: #aeb5b0;
   font-size: 0.62rem;
@@ -350,6 +366,42 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+.admin-order-status {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  background: var(--admin-panel);
+  border: 3px solid var(--ink);
+}
+
+.admin-order-status label {
+  flex: 1;
+}
+
+.admin-order-status span {
+  margin-bottom: 0.45rem;
+  display: block;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-order-status button {
+  min-height: 3rem;
+  padding: 0.65rem 0.9rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 0;
+  box-shadow: 4px 4px 0 var(--orange);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .admin-customer span,
@@ -756,8 +808,14 @@
   .admin-customer,
   .admin-item__fields,
   .product-fields,
-  .new-color {
+  .new-color,
+  .admin-order-status {
     grid-template-columns: 1fr;
+  }
+
+  .admin-order-status {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .product-fields__wide,
