@@ -137,6 +137,30 @@ docker compose logs -f app
 
 Su Internet, pubblicare l'applicazione dietro un reverse proxy HTTPS, impostare `TRUST_PROXY: "true"` e proteggere la porta 3000 con il firewall quando non deve essere raggiunta direttamente. Non attivare `TRUST_PROXY` quando client non fidati possono raggiungere direttamente la porta applicativa.
 
+### Pubblicazione Con Cloudflare Tunnel
+
+`compose.cloudflare.yml` pubblica l'applicazione tramite Cloudflare Tunnel senza associare la porta applicativa a una porta del NAS. I container comunicano sulla rete privata Compose e `TRUST_PROXY` viene attivato automaticamente.
+
+1. Aggiungere un dominio a Cloudflare e creare un tunnel da **Zero Trust > Networks > Tunnels**.
+2. Nella configurazione del tunnel aggiungere un hostname pubblico HTTPS con servizio di origine `http://app:3000`.
+3. Copiare `.env.cloudflare.example` in `.env`, scegliere credenziali amministrative uniche e robuste e inserire il token del tunnel in `TUNNEL_TOKEN`. Non versionare `.env`.
+4. Arrestare lo stack esistente senza eliminare i volumi e avviare il Compose dedicato:
+
+```sh
+docker compose stop
+docker compose -f compose.cloudflare.yml pull
+docker compose -f compose.cloudflare.yml up -d
+docker compose -f compose.cloudflare.yml ps
+```
+
+Non usare `docker compose down -v`: l'opzione `-v` elimina database e storage. Se il progetto Compose o il nome dello stack vengono cambiati nell'interfaccia del NAS, verificare prima dell'avvio che i due named volume esistenti vengano riutilizzati. Dopo la verifica del dominio pubblico, rimuovere dal NAS l'eventuale regola firewall o port forwarding per la porta host precedentemente associata all'applicazione.
+
+Per controllare il tunnel e l'applicazione:
+
+```sh
+docker compose -f compose.cloudflare.yml logs -f cloudflared app
+```
+
 ## API Locali
 
 - `GET /api/products`: prodotti visibili.

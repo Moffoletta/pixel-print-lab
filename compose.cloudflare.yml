@@ -1,0 +1,26 @@
+services:
+  app:
+    image: ghcr.io/moffoletta/pixel-print-lab:latest
+    restart: unless-stopped
+    expose:
+      - "3000"
+    volumes:
+      - pixel-print-lab-data:/app/data
+      - pixel-print-lab-storage:/app/storage
+    environment:
+      ADMIN_USERNAME: "${ADMIN_USERNAME:?Impostare ADMIN_USERNAME nel file .env}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Impostare ADMIN_PASSWORD nel file .env}"
+      TRUST_PROXY: "true"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      - app
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${TUNNEL_TOKEN:?Impostare TUNNEL_TOKEN nel file .env}"
+
+volumes:
+  pixel-print-lab-data:
+  pixel-print-lab-storage:
