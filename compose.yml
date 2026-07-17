@@ -5,8 +5,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/app/data
-      - ./storage:/app/storage
+      - pixel-print-lab-data:/app/data
+      - pixel-print-lab-storage:/app/storage
 
     # Scommenta e modifica soltanto le variabili che ti servono.
     # environment:
@@ -17,6 +17,7 @@ services:
     #   CATALOG_DIRECTORY: /app/storage/catalog
     #   ADMIN_USERNAME: admin
     #   ADMIN_PASSWORD: admin
+    #   TRUST_PROXY: "false"
     #   SMTP_HOST: smtp.example.com
     #   SMTP_PORT: "587"
     #   SMTP_SECURE: "false"
@@ -24,3 +25,7 @@ services:
     #   SMTP_PASSWORD: password-smtp
     #   SMTP_FROM: "Pixel Print Lab <noreply@example.com>"
     #   SMTP_TO: ordini@example.com
+
+volumes:
+  pixel-print-lab-data:
+  pixel-print-lab-storage:

@@ -36,6 +36,22 @@ const checkoutFeedback = document.querySelector("#checkout-feedback");
 const checkoutSubmitButton = document.querySelector("#checkout-submit");
 const orderConfirmation = document.querySelector("#order-confirmation");
 const confirmationCode = document.querySelector("#confirmation-code");
+const checkoutCustomerNote = document.querySelector("#checkout-customer-note");
+const accountOpenButton = document.querySelector("#account-open");
+const accountDialog = document.querySelector("#account-dialog");
+const accountGuestView = document.querySelector("#account-guest-view");
+const accountUserView = document.querySelector("#account-user-view");
+const accountLoginForm = document.querySelector("#account-login-form");
+const accountRegisterForm = document.querySelector("#account-register-form");
+const accountGuestFeedback = document.querySelector("#account-guest-feedback");
+const accountDisplayName = document.querySelector("#account-display-name");
+const accountUsername = document.querySelector("#account-username");
+const accountAdminLink = document.querySelector("#account-admin-link");
+const accountLogoutButton = document.querySelector("#account-logout");
+const accountOrdersRefresh = document.querySelector("#account-orders-refresh");
+const accountOrdersStatus = document.querySelector("#account-orders-status");
+const accountOrderList = document.querySelector("#account-order-list");
+const accountOrderTemplate = document.querySelector("#account-order-template");
 const customForm = document.querySelector("#custom-model-form");
 const customSourceInputs = document.querySelectorAll('input[name="custom-source"]');
 const customFilePanel = document.querySelector("#custom-file-panel");
@@ -53,6 +69,10 @@ const euroFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
   currency: "EUR",
 });
+const dateFormatter = new Intl.DateTimeFormat("it-IT", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 let products = [];
 let colors = [];
@@ -64,6 +84,9 @@ let inspectedUpload;
 let uploadGeneration = 0;
 let publicOrdersSignature = "";
 let trackingLoadVersion = 0;
+let currentAccount;
+let accountStateVersion = 0;
+let accountAuthPending = false;
 const publicStatusLabels = {
   in_attesa: "In attesa",
   in_lavorazione: "In lavorazione",
@@ -340,9 +363,129 @@ async function inspectedModelFor(file) {
 async function parseApiResponse(response) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(body.error?.message ?? "La richiesta non e riuscita.");
+    const error = new Error(body.error?.message ?? "La richiesta non e riuscita.");
+    error.code = body.error?.code;
+    error.status = response.status;
+    throw error;
   }
   return body.data;
+}
+
+function renderAccount() {
+  const authenticated = Boolean(currentAccount);
+  accountGuestView.hidden = authenticated;
+  accountUserView.hidden = !authenticated;
+  accountOpenButton.textContent = authenticated ? `@${currentAccount.username}` : "Accedi";
+  checkoutCustomerNote.textContent = authenticated
+    ? `La richiesta verra salvata nello storico di @${currentAccount.username}.`
+    : "Puoi inviare la richiesta come ospite. Accordi e consegna avverranno privatamente.";
+  if (!authenticated) {
+    accountOrderList.replaceChildren();
+    return;
+  }
+  accountDisplayName.textContent = `${currentAccount.firstName} ${currentAccount.lastName}`;
+  accountUsername.textContent = `@${currentAccount.username}`;
+  accountAdminLink.hidden = currentAccount.role !== "admin";
+}
+
+function renderAccountOrders(orders) {
+  const elements = orders.map((order) => {
+    const element = accountOrderTemplate.content.firstElementChild.cloneNode(true);
+    const date = new Date(`${order.createdAt.replace(" ", "T")}Z`);
+    element.querySelector('[data-field="account-order-date"]').textContent = Number.isNaN(date.valueOf())
+      ? order.createdAt
+      : dateFormatter.format(date);
+    element.querySelector('[data-field="account-order-code"]').textContent = order.code;
+    element.querySelector('[data-field="account-order-status"]').textContent = publicStatusLabels[order.status] ?? order.status;
+    element.querySelector('[data-field="account-order-total"]').textContent = euroFormatter.format(order.catalogTotalCents / 100);
+    const itemList = element.querySelector('[data-field="account-order-items"]');
+    order.items.forEach((item) => {
+      const listItem = document.createElement("li");
+      const name = document.createElement("span");
+      const detail = document.createElement("span");
+      name.textContent = item.productName;
+      detail.textContent = `${item.colorName} / ${item.quantity} pz.`;
+      listItem.append(name, detail);
+      itemList.append(listItem);
+    });
+    return element;
+  });
+  accountOrderList.replaceChildren(...elements);
+  accountOrdersStatus.textContent = orders.length ? "" : "Non hai ancora inviato ordini con questo account.";
+}
+
+async function loadAccountOrders() {
+  if (!currentAccount) return;
+  const version = accountStateVersion;
+  const accountId = currentAccount.id;
+  accountOrdersRefresh.disabled = true;
+  accountOrdersStatus.textContent = "Caricamento storico...";
+  try {
+    const orders = await parseApiResponse(await fetch("/api/account/orders", { cache: "no-store" }));
+    if (version !== accountStateVersion || currentAccount?.id !== accountId) return;
+    renderAccountOrders(orders);
+  } catch (error) {
+    if (version !== accountStateVersion || currentAccount?.id !== accountId) return;
+    if (error.status === 401) {
+      currentAccount = undefined;
+      accountStateVersion += 1;
+      renderAccount();
+    }
+    accountOrdersStatus.textContent = error.message;
+  } finally {
+    if (version === accountStateVersion) accountOrdersRefresh.disabled = false;
+  }
+}
+
+async function loadAccountSession() {
+  const version = accountStateVersion;
+  try {
+    const response = await fetch("/api/account/session", { cache: "no-store" });
+    const account = response.status === 401 ? undefined : await parseApiResponse(response);
+    if (version !== accountStateVersion) return;
+    currentAccount = account;
+  } catch (error) {
+    if (version !== accountStateVersion) return;
+    console.error(error);
+    currentAccount = undefined;
+  }
+  renderAccount();
+}
+
+async function submitAccountForm(form, endpoint) {
+  if (accountAuthPending) return;
+  accountAuthPending = true;
+  const buttons = [
+    accountLoginForm.querySelector('[type="submit"]'),
+    accountRegisterForm.querySelector('[type="submit"]'),
+  ];
+  const formData = new FormData(form);
+  buttons.forEach((button) => { button.disabled = true; });
+  accountGuestFeedback.textContent = "";
+  accountGuestFeedback.classList.remove("account-feedback--error");
+  const version = ++accountStateVersion;
+  try {
+    const account = await parseApiResponse(
+      await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(Object.fromEntries(formData)),
+      }),
+    );
+    if (version !== accountStateVersion) return;
+    currentAccount = account;
+    form.reset();
+    renderAccount();
+    accountDisplayName.focus();
+    await loadAccountOrders();
+  } catch (error) {
+    if (version !== accountStateVersion) return;
+    accountGuestFeedback.textContent = error.message;
+    accountGuestFeedback.classList.add("account-feedback--error");
+  } finally {
+    accountAuthPending = false;
+    buttons.forEach((button) => { button.disabled = false; });
+  }
 }
 
 async function loadPublicOrders() {
@@ -542,6 +685,10 @@ function serializeOrderItem(item) {
 
 checkoutOpenButton.addEventListener("click", () => {
   checkoutForm.reset();
+  if (currentAccount) {
+    checkoutForm.elements.firstName.value = currentAccount.firstName;
+    checkoutForm.elements.lastName.value = currentAccount.lastName;
+  }
   checkoutFeedback.textContent = "";
   checkoutFeedback.classList.remove("checkout-feedback--error");
   checkoutFormView.hidden = false;
@@ -578,7 +725,13 @@ checkoutForm.addEventListener("submit", async (event) => {
     orderConfirmation.hidden = false;
     confirmationCode.textContent = order.code;
     loadPublicOrders();
+    if (currentAccount) loadAccountOrders();
   } catch (error) {
+    if (error.code === "SESSION_EXPIRED") {
+      currentAccount = undefined;
+      accountStateVersion += 1;
+      renderAccount();
+    }
     checkoutFeedback.textContent = error.message;
     checkoutFeedback.classList.add("checkout-feedback--error");
   } finally {
@@ -637,7 +790,38 @@ async function loadCatalog() {
 }
 
 cartOpenButton.addEventListener("click", () => cartDialog.showModal());
+accountOpenButton.addEventListener("click", () => {
+  accountGuestFeedback.textContent = "";
+  accountDialog.showModal();
+  if (currentAccount) loadAccountOrders();
+});
+accountLoginForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitAccountForm(accountLoginForm, "/api/account/login");
+});
+accountRegisterForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitAccountForm(accountRegisterForm, "/api/account/register");
+});
+accountLogoutButton.addEventListener("click", async () => {
+  accountLogoutButton.disabled = true;
+  const version = ++accountStateVersion;
+  try {
+    const response = await fetch("/api/account/logout", { method: "POST" });
+    if (!response.ok) throw new Error("Disconnessione non riuscita.");
+    if (version !== accountStateVersion) return;
+    currentAccount = undefined;
+    renderAccount();
+    document.querySelector("#login-username").focus();
+  } catch (error) {
+    if (version === accountStateVersion) accountOrdersStatus.textContent = error.message;
+  } finally {
+    if (version === accountStateVersion) accountLogoutButton.disabled = false;
+  }
+});
+accountOrdersRefresh.addEventListener("click", loadAccountOrders);
 updateCustomSource();
+loadAccountSession();
 loadCatalog();
 loadPublicOrders();
 setInterval(() => {

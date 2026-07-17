@@ -6,6 +6,8 @@ import { registerCustomModelRoutes } from "./custom-model-routes.js";
 import { registerOrderRoutes } from "./order-routes.js";
 import { registerAdminRoutes } from "./admin-routes.js";
 import { registerCatalogAssetServing } from "./catalog-assets.js";
+import { createAuthService } from "./auth-service.js";
+import { registerAccountRoutes } from "./account-routes.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
@@ -18,6 +20,7 @@ export function createApp({
   catalogDirectory,
   adminUsername,
   adminPassword,
+  trustProxy = false,
   emailService,
 } = {}) {
   if (!database) {
@@ -25,8 +28,10 @@ export function createApp({
   }
 
   const app = express();
+  const auth = createAuthService({ database, adminUsername, adminPassword });
 
   app.disable("x-powered-by");
+  if (trustProxy) app.set("trust proxy", 1);
   app.use(express.json({ limit: "1mb" }));
   registerCatalogAssetServing(app, catalogDirectory);
   app.use("/vendor/three/build", express.static(path.join(threeDirectory, "build")));
@@ -39,16 +44,17 @@ export function createApp({
   });
 
   registerCatalogRoutes(app, database);
+  registerAccountRoutes(app, { database, auth });
   registerOrderRoutes(app, {
     database,
     uploadDirectory,
     orderFileDirectory,
     emailService,
+    optionalAccount: auth.optionalAccount,
   });
   registerAdminRoutes(app, {
     database,
-    adminUsername,
-    adminPassword,
+    requireAdmin: auth.requireAdmin,
     catalogDirectory,
     orderFileDirectory,
     emailService,

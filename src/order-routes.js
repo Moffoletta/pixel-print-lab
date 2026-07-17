@@ -120,6 +120,7 @@ export function registerOrderRoutes(
     uploadDirectory = defaultUploadDirectory,
     orderFileDirectory = defaultOrderFileDirectory,
     emailService,
+    optionalAccount = (_request, _response, next) => next(),
   },
 ) {
   mkdirSync(orderFileDirectory, { recursive: true });
@@ -143,8 +144,8 @@ export function registerOrderRoutes(
     SELECT email_notifications_enabled FROM app_settings WHERE id = 1
   `);
   const insertOrder = database.prepare(`
-    INSERT INTO orders (code, first_name, last_name, catalog_total_cents)
-    VALUES (@code, @firstName, @lastName, @catalogTotalCents)
+    INSERT INTO orders (code, first_name, last_name, catalog_total_cents, user_account_id)
+    VALUES (@code, @firstName, @lastName, @catalogTotalCents, @userAccountId)
   `);
   const insertItem = database.prepare(`
     INSERT INTO order_items (
@@ -171,7 +172,7 @@ export function registerOrderRoutes(
     response.json({ data: listPublicOrders.all() });
   });
 
-  app.post("/api/orders", async (request, response) => {
+  app.post("/api/orders", optionalAccount, async (request, response) => {
     const copiedFiles = [];
     try {
       const firstName = validatePersonName(request.body?.firstName, "Il nome");
@@ -344,7 +345,14 @@ export function registerOrderRoutes(
           item.unitPriceCents === null ? total : total + item.unitPriceCents * item.quantity,
         0,
       );
-      const order = { code, firstName, lastName, catalogTotalCents, items: validatedItems };
+      const order = {
+        code,
+        firstName,
+        lastName,
+        catalogTotalCents,
+        userAccountId: request.userAccount?.id ?? null,
+        items: validatedItems,
+      };
       saveOrder(order);
 
       const temporaryFiles = new Set(

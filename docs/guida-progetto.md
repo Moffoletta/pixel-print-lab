@@ -2,7 +2,7 @@
 
 ## 1. Obiettivo
 
-Pixel Print Lab e un'applicazione personale in italiano per raccogliere richieste di stampa 3D. Non e un e-commerce: non gestisce pagamenti, spedizioni, account cliente o preventivi.
+Pixel Print Lab e un'applicazione personale in italiano per raccogliere richieste di stampa 3D. Non e un e-commerce: non gestisce pagamenti, spedizioni o preventivi. Gli account cliente sono facoltativi e servono soltanto per conservare lo storico personale.
 
 La pagina pubblica permettera di scegliere modelli dal catalogo oppure fornire un file STL o un link esterno autorizzato. Il pannello amministrativo permettera a un solo proprietario di gestire catalogo, colori e richieste.
 
@@ -894,7 +894,7 @@ Dopo HTTP `201` il browser:
 - nasconde il form;
 - mostra conferma e codice univoco.
 
-Il dialog non mostra nuovamente dati personali o dettagli dell'ordine. Poiche non esiste un account cliente, il codice deve essere annotato prima di chiudere.
+Il dialog non mostra nuovamente dati personali o dettagli dell'ordine. L'ospite deve annotare il codice prima di chiudere; l'utente autenticato ritrova invece la richiesta nel proprio storico.
 
 ### Dati Personali
 
@@ -962,28 +962,30 @@ Ogni indirizzo IP puo fallire al massimo cinque accessi in una finestra di 15 mi
 
 Il limite vive in memoria ed e adatto al progetto locale. In un'applicazione distribuita dovrebbe essere condiviso tra processi e considerare correttamente proxy e bilanciatori.
 
-### Sessione
+### Sessione Unificata
 
 Dopo il login il server genera 32 byte casuali e li invia in un cookie:
 
 - `HttpOnly`, quindi JavaScript non puo leggerlo;
 - `SameSite=Strict`, per limitarne l'invio da altri siti;
 - `Path=/`, per autorizzare tutte le API amministrative;
-- durata massima di otto ore;
+- durata massima di sette giorni;
 - `Secure` quando la richiesta avviene tramite HTTPS.
 
-Le sessioni sono conservate in memoria e scadono anche lato server. Il riavvio del processo le elimina, richiedendo un nuovo login. Il logout invalida il token e cancella il cookie.
+Il browser riceve il token originale, mentre SQLite conserva soltanto il relativo hash SHA-256. Le sessioni cliente sopravvivono al riavvio; quelle legate all'amministratore configurato tramite ambiente vengono invalidate all'avvio, cosi una modifica delle credenziali Docker ha effetto immediato. Il logout elimina il token e cancella il cookie.
+
+Le password degli account locali non sono salvate in chiaro: `scrypt` produce un hash lento con sale casuale. La password amministrativa resta invece un segreto d'ambiente e viene confrontata a tempo costante.
 
 ### Middleware Di Autorizzazione
 
 Ogni route sotto `/api/admin` che espone dati usa `requireAdmin`. Il middleware:
 
-1. elimina sessioni scadute;
-2. legge il cookie;
-3. verifica il token;
-4. rinnova la scadenza server;
+1. legge il cookie;
+2. calcola l'hash del token;
+3. verifica sessione e scadenza in SQLite;
+4. carica account e ruolo;
 5. imposta `Cache-Control: no-store`;
-6. restituisce `401` se l'accesso non e valido.
+6. restituisce `401` senza account o `403` senza ruolo amministrativo.
 
 Scaricare direttamente un STL permanente senza cookie produce quindi `401` come qualsiasi altra API protetta.
 
@@ -1057,11 +1059,11 @@ La pagina gestisce:
 
 ### Limiti Attuali
 
-- Le sessioni non sopravvivono al riavvio.
 - Esiste un solo amministratore configurato tramite variabili d'ambiente.
 - Non esiste recupero password.
 - Gli ordini eliminati non sono recuperabili senza backup.
 - Prima della pubblicazione saranno necessari HTTPS e configurazione corretta del proxy.
+- Dietro un reverse proxy fidato, `TRUST_PROXY=true` permette a Express di riconoscere IP e protocollo originali; la porta applicativa non deve restare esposta direttamente.
 
 ### Verifiche
 
@@ -1304,3 +1306,23 @@ PUT /api/admin/settings
 Il browser riceve soltanto stato di configurazione, destinatario e valore del toggle. Host, utente e password SMTP restano nelle variabili d'ambiente. L'attivazione viene rifiutata finche `SMTP_HOST`, `SMTP_FROM` e `SMTP_TO` non sono validi; utente e password devono essere forniti insieme.
 
 Quando l'opzione e attiva, il server invia dopo il commit un messaggio testuale con oggetto `Nuova richiesta <codice>`. SMTP non puo partecipare alla transazione SQLite: un errore viene registrato senza cancellare l'ordine o i file gia salvati.
+
+## 32. Account Cliente E Storico
+
+La migrazione 8 aggiunge `user_accounts`, `user_sessions` e la foreign key facoltativa `orders.user_account_id`. Gli ordini precedenti e quelli inviati senza sessione mantengono il valore `NULL`; non vengono attribuiti automaticamente usando nome, cognome o codice pubblico.
+
+Le API account sono:
+
+```text
+POST /api/account/register
+POST /api/account/login
+POST /api/account/logout
+GET  /api/account/session
+GET  /api/account/orders
+```
+
+Registrazione e login impostano lo stesso cookie HttpOnly usato dalla Control Room. Un account locale riceve sempre il ruolo `customer`. Se le credenziali corrispondono a `ADMIN_USERNAME` e `ADMIN_PASSWORD`, il server crea o riattiva l'identita con ruolo `admin`; quel nome utente e riservato e non puo essere registrato da un cliente.
+
+`POST /api/orders` legge l'identita esclusivamente dalla sessione e ignora qualsiasi identificativo account inviato dal client. Lo storico filtra sempre per l'ID della sessione corrente e restituisce gli snapshot delle sole richieste associate. Nome e cognome restano modificabili nel checkout e vengono salvati nell'ordine come fotografia del momento.
+
+L'interfaccia pubblica precompila il checkout per l'utente autenticato, mostra stato e righe degli ordini e rende visibile il collegamento alla Control Room soltanto quando il server restituisce il ruolo `admin`. L'invio ospite continua a usare lo stesso payload e lo stesso flusso precedente.

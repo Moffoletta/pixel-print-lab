@@ -2,7 +2,7 @@
 
 Questo documento rappresenta la struttura generale dell'applicazione. Deve essere aggiornato insieme al codice quando cambiano componenti, dipendenze, API, database, directory di storage o flussi principali.
 
-Ultimo aggiornamento: 17 luglio 2026, impostazioni admin e notifiche SMTP opzionali.
+Ultimo aggiornamento: 17 luglio 2026, account cliente e autenticazione unificata.
 
 ## Diagramma Di Flusso
 
@@ -19,21 +19,25 @@ flowchart LR
 
   subgraph Browser
     Pubblica[Interfaccia pubblica]
+    AccountUI[Login, registrazione e storico]
     Pannello[Pannello Control Room]
     Pubblica --> CatalogoUI[Catalogo e viewer STL/3MF]
     Pubblica --> TrackingUI[Tracking pubblico codice/stato]
     Pubblica --> Carrello[Carrello locale]
+    Pubblica --> AccountUI
     Pannello --> OrdiniUI[Consultazione ordini e gestione stato]
     Pannello --> CatalogoAdmin[Gestione prodotti e colori]
   end
 
   subgraph Server[Node.js ed Express]
     API[API pubbliche]
+    APIAccount[API account protette]
     APIAdmin[API amministrative protette]
-    Sessioni[Sessioni admin in memoria]
+    Auth[Autenticazione e ruoli]
     Validazione[Validazione dati, STL e archivi 3MF]
     Asset[Servizio asset statici]
-    APIAdmin <--> Sessioni
+    APIAccount <--> Auth
+    APIAdmin <--> Auth
     API --> Validazione
     APIAdmin --> Validazione
   end
@@ -41,7 +45,7 @@ flowchart LR
   subgraph Persistenza
     DB[(SQLite)]
     Storage[(Storage locale)]
-    DB --> Tabelle[Prodotti, colori, ordini e snapshot]
+    DB --> Tabelle[Prodotti, colori, account, sessioni, ordini e snapshot]
     Storage --> Upload[Upload STL/3MF temporanei]
     Storage --> FileOrdini[STL/3MF degli ordini]
     Storage --> FileCatalogo[Immagini e STL del catalogo]
@@ -51,8 +55,8 @@ flowchart LR
 
   subgraph Docker[Distribuzione Docker Compose]
     Container[Container Node.js non-root]
-    BindData[Bind mount ./data]
-    BindStorage[Bind mount ./storage]
+    VolumeData[Named volume data]
+    VolumeStorage[Named volume storage]
   end
 
   Cliente --> Pubblica
@@ -60,6 +64,7 @@ flowchart LR
   CatalogoUI --> API
   TrackingUI --> API
   Carrello --> API
+  AccountUI --> APIAccount
   OrdiniUI --> APIAdmin
   CatalogoAdmin --> APIAdmin
   API --> DB
@@ -68,8 +73,8 @@ flowchart LR
   Asset --> Storage
   API --> SMTP
   Container --> API
-  BindData --> DB
-  BindStorage --> Storage
+  VolumeData --> DB
+  VolumeStorage --> Storage
 ```
 
 ## Componenti Applicativi
@@ -100,6 +105,8 @@ flowchart TB
     CatalogRoutes[catalog-routes.js]
     CustomRoutes[custom-model-routes.js]
     OrderRoutes[order-routes.js]
+    AccountRoutes[account-routes.js]
+    AuthService[auth-service.js]
     AdminRoutes[admin-routes.js]
     EmailService[email-service.js]
     CatalogAssets[catalog-assets.js]
@@ -109,6 +116,8 @@ flowchart TB
     AppJS --> CatalogRoutes
     AppJS --> CustomRoutes
     AppJS --> OrderRoutes
+    AppJS --> AccountRoutes
+    AppJS --> AuthService
     AppJS --> AdminRoutes
     ServerJS --> EmailService
     AppJS --> CatalogAssets
@@ -116,6 +125,8 @@ flowchart TB
     OrderRoutes --> ModelFiles
     CatalogRoutes --> Database
     OrderRoutes --> Database
+    AccountRoutes --> Database
+    AuthService --> Database
     AdminRoutes --> Database
     AdminRoutes --> CatalogAssets
     OrderRoutes --> EmailService
@@ -124,6 +135,7 @@ flowchart TB
   FrontendPubblico --> CatalogRoutes
   FrontendPubblico --> CustomRoutes
   FrontendPubblico --> OrderRoutes
+  FrontendPubblico --> AccountRoutes
   FrontendAdmin --> AdminRoutes
 ```
 
@@ -139,6 +151,11 @@ sequenceDiagram
   participant M as Server SMTP
 
   C->>B: Seleziona prodotto, colore e quantita
+  opt Account facoltativo
+    C->>B: Registra o autentica l'account
+    B->>E: POST /api/account/register o login
+    E->>D: Salva account e sessione protetta
+  end
   B->>E: Richiede catalogo e colori attivi
   E->>D: Legge dati pubblici
   D-->>E: Prodotti e colori
@@ -149,13 +166,17 @@ sequenceDiagram
   E->>S: Salva upload temporaneo
   C->>B: Invia nome, cognome e carrello
   B->>E: POST /api/orders
-  E->>D: Rivalida e salva ordine e snapshot
+  E->>D: Rivalida e salva ordine, snapshot e account facoltativo
   E->>S: Rende permanenti i file
   E->>D: Legge impostazione email
   opt Email automatica attiva
     E->>M: Invia riepilogo ordine
   end
   E-->>B: Restituisce il codice richiesta
+  opt Cliente autenticato
+    B->>E: GET /api/account/orders
+    E->>D: Legge soltanto gli ordini dell'account
+  end
   B->>E: GET /api/orders
   E->>D: Legge solo codice e stato
   E-->>B: Elenco pubblico aggiornato
@@ -212,7 +233,9 @@ Pixel Print Lab/
 |   |-- custom-model-routes.js
 |   |-- model-files.js      Ispezione sicura STL/3MF e primo piatto
 |   |-- order-routes.js
-|   |-- admin-routes.js     Sessioni e API protette
+|   |-- account-routes.js   Login, registrazione e storico personale
+|   |-- auth-service.js     Password, sessioni e ruoli
+|   |-- admin-routes.js     API amministrative protette
 |   |-- email-service.js    Trasporto SMTP opzionale
 |   `-- catalog-assets.js   Upload e servizio asset catalogo
 |-- storage/                File runtime esclusi da Git
@@ -224,7 +247,7 @@ Pixel Print Lab/
 |-- docs/                   Roadmap, guida e diagrammi
 |-- .github/workflows/      Test continui e pubblicazione release
 |-- Dockerfile              Immagine di produzione Node.js 22
-|-- compose.yml             Servizio essenziale e bind mount persistenti
+|-- compose.yml             Servizio essenziale e named volumes persistenti
 |-- .dockerignore           Esclusioni dal contesto di build
 |-- CHANGELOG.md            Modifiche delle versioni pubblicate
 |-- LICENSE                 Licenza MIT
@@ -236,9 +259,10 @@ Pixel Print Lab/
 
 - Il container esegue migrazioni e seed idempotente prima di avviare il server.
 - Il processo applicativo usa l'utente non privilegiato `node`.
-- `./data` e `./storage` sono bind mount rispettivamente per SQLite e file runtime.
+- `pixel-print-lab-data` e `pixel-print-lab-storage` sono named volumes rispettivamente per SQLite e file runtime.
 - Il Compose mantiene commentate le variabili facoltative; credenziali admin e SMTP si attivano scommentando quelle necessarie.
-- Una singola istanza applicativa deve usare il database SQLite; i bind mount non vanno condivisi tra repliche concorrenti.
+- `TRUST_PROXY` va attivato soltanto quando la porta applicativa e raggiungibile tramite un reverse proxy fidato.
+- Una singola istanza applicativa deve usare il database SQLite; i volumi non vanno condivisi tra repliche concorrenti.
 - I tag `v*.*.*` verificano l'applicazione, pubblicano l'immagine versionata su GHCR e creano una GitHub Release.
 - Le immagini ricevono il numero completo, il numero major/minor e `latest`; i dati runtime non fanno parte dell'immagine.
 
@@ -246,7 +270,9 @@ Pixel Print Lab/
 
 - Le pagine statiche non contengono dati amministrativi.
 - Tutte le API `/api/admin/*` richiedono una sessione valida.
-- Le credenziali sono lette dall'ambiente; `.env` locale e file runtime sono esclusi da Git.
+- Le credenziali admin sono lette dall'ambiente; `.env` locale e file runtime sono esclusi da Git.
+- Le password cliente usano `scrypt`; SQLite conserva soltanto hash di password e token di sessione.
+- Lo storico personale filtra gli ordini usando esclusivamente l'account ricavato dal cookie HttpOnly.
 - I dati inviati dal browser vengono rivalidati dal server.
 - Gli upload usano nomi UUID, limiti di dimensione e verifica del contenuto.
 - I 3MF vengono ispezionati lato server prima dell'anteprima e confrontati con un volume standard 256x256x256 mm.

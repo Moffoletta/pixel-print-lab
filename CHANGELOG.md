@@ -2,6 +2,18 @@
 
 Le modifiche rilevanti del progetto sono raccolte in questo file.
 
+## [0.3.0] - 2026-07-17
+
+### Aggiunto
+
+- Account opzionali con registrazione, login e storico personale degli ordini.
+- Accesso unificato per l'amministratore e collegamento diretto alla Control Room.
+
+### Modificato
+
+- Sostituiti i bind mount Docker con named volumes per evitare configurazioni manuali dei permessi.
+- Persistite in SQLite le sessioni cliente e l'associazione facoltativa tra account e ordini.
+
 ## [0.2.0] - 2026-07-17
 
 ### Aggiunto
@@ -26,5 +38,6 @@ Le modifiche rilevanti del progetto sono raccolte in questo file.
 - Distribuzione self-hosted con Docker Compose e volumi persistenti.
 - Test automatici e build Docker tramite GitHub Actions.
 
+[0.3.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Moffoletta/pixel-print-lab/releases/tag/v0.1.0

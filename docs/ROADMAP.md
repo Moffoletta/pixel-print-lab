@@ -22,6 +22,16 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 ## Completato
 
+### Account cliente e accesso unificato
+
+- [x] Mantenuto invariato l'invio degli ordini come ospite.
+- [x] Aggiunti registrazione, login, logout e sessioni persistenti.
+- [x] Protette le password locali con `scrypt` e i token di sessione con hash SHA-256.
+- [x] Associati agli account soltanto gli ordini creati durante una sessione valida.
+- [x] Aggiunti storico personale, precompilazione del checkout e interfaccia responsive.
+- [x] Unificato l'accesso amministrativo e mostrato il collegamento alla Control Room in base al ruolo.
+- [x] Verificati isolamento degli ordini, flusso ospite e autorizzazione amministrativa.
+
 ### Impostazioni email SMTP
 
 - [x] Aggiunta configurazione SMTP tramite ambiente e Docker Compose.
@@ -42,7 +52,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 - [x] Aggiunta immagine di produzione basata su Node.js 22.
 - [x] Configurato un Docker Compose essenziale con variabili commentate.
-- [x] Separati database e storage in bind mount persistenti.
+- [x] Separati database e storage in named volumes persistenti.
 - [x] Eseguito il container come utente non-root.
 - [x] Aggiunti setup idempotente e riavvio automatico.
 - [x] Documentati avvio, aggiornamento, persistenza e backup.
@@ -90,7 +100,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 ### Fase 8 - Accesso amministrativo e ordini
 
-- [x] Configurata autenticazione con nome utente, password e sessione in memoria.
+- [x] Configurata autenticazione con nome utente, password e sessione protetta.
 - [x] Aggiunti cookie HttpOnly, SameSite e scadenza.
 - [x] Limitati i tentativi di login falliti.
 - [x] Create API protette per elenco, dettaglio e download STL.

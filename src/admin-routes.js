@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -14,11 +13,6 @@ import {
   defaultOrderFileDirectory,
   ORDER_STATUSES,
 } from "./order-routes.js";
-
-const SESSION_COOKIE = "ppl_admin_session";
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const MAX_LOGIN_ATTEMPTS = 5;
 
 class AdminError extends Error {
   constructor(code, message, status = 400) {
@@ -49,35 +43,6 @@ function sendError(response, error) {
   return response.status(500).json({
     error: { code: "ADMIN_OPERATION_FAILED", message: "Operazione amministrativa non riuscita." },
   });
-}
-
-function parseCookies(request) {
-  return Object.fromEntries(
-    (request.headers.cookie ?? "")
-      .split(";")
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const separator = part.indexOf("=");
-        if (separator === -1) return [part, ""];
-        let value = part.slice(separator + 1);
-        try {
-          value = decodeURIComponent(value);
-        } catch {
-          value = "";
-        }
-        return [part.slice(0, separator), value];
-      }),
-  );
-}
-
-function credentialMatches(candidate, configuredValue) {
-  if (typeof candidate !== "string" || typeof configuredValue !== "string") {
-    return false;
-  }
-  const candidateHash = crypto.createHash("sha256").update(candidate).digest();
-  const configuredHash = crypto.createHash("sha256").update(configuredValue).digest();
-  return crypto.timingSafeEqual(candidateHash, configuredHash);
 }
 
 function requiredText(value, label, maximum = 120) {
@@ -203,15 +168,12 @@ export function registerAdminRoutes(
   app,
   {
     database,
-    adminUsername,
-    adminPassword,
+    requireAdmin,
     catalogDirectory,
     orderFileDirectory = defaultOrderFileDirectory,
     emailService,
   },
 ) {
-  const sessions = new Map();
-  const loginAttempts = new Map();
   const catalogUpload = createCatalogUpload(catalogDirectory);
   const findOrder = database.prepare("SELECT * FROM orders WHERE id = ?");
   const listItems = database.prepare("SELECT * FROM order_items WHERE order_id = ? ORDER BY position");
@@ -269,28 +231,6 @@ export function registerAdminRoutes(
     };
   }
 
-  function pruneSessions() {
-    const now = Date.now();
-    for (const [token, expiresAt] of sessions) {
-      if (expiresAt <= now) sessions.delete(token);
-    }
-  }
-
-  function requireAdmin(request, response, next) {
-    pruneSessions();
-    const token = parseCookies(request)[SESSION_COOKIE];
-    if (!token || !sessions.has(token)) {
-      response.status(401).json({
-        error: { code: "ADMIN_AUTH_REQUIRED", message: "Accesso amministrativo richiesto." },
-      });
-      return;
-    }
-    sessions.set(token, Date.now() + SESSION_TTL_MS);
-    response.setHeader("Cache-Control", "no-store");
-    request.adminSessionToken = token;
-    next();
-  }
-
   function handleProductUpload(request, response, existingProduct) {
     catalogUpload(request, response, async (uploadError) => {
       const uploadedPaths = getUploadedPaths(request.files);
@@ -335,61 +275,6 @@ export function registerAdminRoutes(
       }
     });
   }
-
-  app.post("/api/admin/login", (request, response) => {
-    if (
-      typeof adminUsername !== "string" || adminUsername.length === 0 ||
-      typeof adminPassword !== "string" || adminPassword.length === 0
-    ) {
-      return response.status(503).json({
-        error: {
-          code: "ADMIN_NOT_CONFIGURED",
-          message: "Imposta ADMIN_USERNAME e ADMIN_PASSWORD prima di usare il pannello amministrativo.",
-        },
-      });
-    }
-
-    const key = request.ip;
-    const now = Date.now();
-    const attempt = loginAttempts.get(key);
-    if (attempt && attempt.resetAt > now && attempt.count >= MAX_LOGIN_ATTEMPTS) {
-      return response.status(429).json({
-        error: { code: "LOGIN_RATE_LIMITED", message: "Troppi tentativi. Riprova piu tardi." },
-      });
-    }
-    const usernameIsValid = credentialMatches(request.body?.username, adminUsername);
-    const passwordIsValid = credentialMatches(request.body?.password, adminPassword);
-    if (!usernameIsValid || !passwordIsValid) {
-      const current = attempt && attempt.resetAt > now ? attempt : { count: 0, resetAt: now + LOGIN_WINDOW_MS };
-      loginAttempts.set(key, { ...current, count: current.count + 1 });
-      return response.status(401).json({
-        error: { code: "INVALID_ADMIN_CREDENTIALS", message: "Nome utente o password non corretti." },
-      });
-    }
-
-    loginAttempts.delete(key);
-    const token = crypto.randomBytes(32).toString("base64url");
-    sessions.set(token, now + SESSION_TTL_MS);
-    const secure = request.secure || request.headers["x-forwarded-proto"] === "https";
-    response.setHeader(
-      "Set-Cookie",
-      `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL_MS / 1000}${secure ? "; Secure" : ""}`,
-    );
-    return response.status(201).json({ data: { authenticated: true } });
-  });
-
-  app.post("/api/admin/logout", requireAdmin, (request, response) => {
-    sessions.delete(request.adminSessionToken);
-    response.setHeader(
-      "Set-Cookie",
-      `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
-    );
-    return response.status(204).end();
-  });
-
-  app.get("/api/admin/session", requireAdmin, (_request, response) => {
-    response.json({ data: { authenticated: true } });
-  });
 
   app.get("/api/admin/settings", requireAdmin, (_request, response) => {
     response.json({ data: serializeSettings() });

@@ -281,7 +281,7 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 7);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 8);
   assert.equal(database.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
 });
 
@@ -343,7 +343,7 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
     assert.equal(legacyDatabase.prepare("SELECT model_format FROM order_items WHERE id = 1").get().model_format, "stl");
     assert.equal(legacyDatabase.prepare("SELECT status FROM orders WHERE id = 1").get().status, "in_attesa");
-    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 7);
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 8);
     assert.equal(legacyDatabase.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
     legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
     const nextId = Number(legacyDatabase.prepare(`
@@ -720,6 +720,7 @@ endsolid order`;
   assert.equal(order.last_name, "Rossi");
   assert.equal(order.catalog_total_cents, 2400);
   assert.equal(order.status, "in_attesa");
+  assert.equal(order.user_account_id, null);
   assert.equal(items.length, 3);
   assert.equal(items[0].product_name, "Vaso Orbitale");
   assert.equal(items[0].unit_price_cents, 1200);
@@ -1039,6 +1040,128 @@ endsolid catalog`;
   database.prepare("DELETE FROM colors WHERE id = ?").run(color.id);
 });
 
+test("gestisce account, storico personale e accesso amministrativo unificato", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/account/orders`)).status, 401);
+
+  const reservedRegistration = await fetch(`${baseUrl}/api/account/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      username: "test-admin",
+      password: "password-molto-sicura",
+      firstName: "Admin",
+      lastName: "Cliente",
+    }),
+  });
+  assert.equal(reservedRegistration.status, 409);
+
+  const registration = await fetch(`${baseUrl}/api/account/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      username: "cliente.test",
+      password: "password-molto-sicura",
+      firstName: "Cliente",
+      lastName: "Test",
+    }),
+  });
+  const registeredAccount = await registration.json();
+  const accountCookie = registration.headers.get("set-cookie").split(";", 1)[0];
+  assert.equal(registration.status, 201);
+  assert.equal(registeredAccount.data.role, "customer");
+  assert.equal(database.prepare("SELECT password_hash FROM user_accounts WHERE username = ?").get("cliente.test").password_hash.includes("password-molto-sicura"), false);
+
+  const accountFetch = (pathName, options = {}) =>
+    fetch(`${baseUrl}${pathName}`, {
+      ...options,
+      headers: { cookie: accountCookie, ...(options.headers ?? {}) },
+    });
+  const session = await accountFetch("/api/account/session");
+  assert.equal(session.status, 200);
+  assert.equal((await session.json()).data.username, "cliente.test");
+  assert.equal((await accountFetch("/api/admin/session")).status, 403);
+
+  const orderResponse = await accountFetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Cliente",
+      lastName: "Test",
+      items: [{ type: "catalog", productId: 1, colorId: 1, quantity: 2 }],
+    }),
+  });
+  const order = (await orderResponse.json()).data;
+  assert.equal(orderResponse.status, 201);
+  const savedOrder = database.prepare("SELECT * FROM orders WHERE code = ?").get(order.code);
+  assert.equal(savedOrder.user_account_id, registeredAccount.data.id);
+
+  const historyResponse = await accountFetch("/api/account/orders");
+  const history = (await historyResponse.json()).data;
+  assert.equal(historyResponse.status, 200);
+  assert.equal(history.length, 1);
+  assert.equal(history[0].code, order.code);
+  assert.equal(history[0].items[0].productName, "Vaso Orbitale");
+
+  const logout = await accountFetch("/api/account/logout", { method: "POST" });
+  assert.equal(logout.status, 204);
+  assert.equal((await accountFetch("/api/account/session")).status, 401);
+
+  const orderCountBeforeExpiredSession = database.prepare("SELECT COUNT(*) AS count FROM orders").get().count;
+  const expiredSessionOrder = await accountFetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Cliente",
+      lastName: "Test",
+      items: [{ type: "catalog", productId: 1, colorId: 1, quantity: 1 }],
+    }),
+  });
+  assert.equal(expiredSessionOrder.status, 401);
+  assert.equal((await expiredSessionOrder.json()).error.code, "SESSION_EXPIRED");
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, orderCountBeforeExpiredSession);
+
+  const login = await fetch(`${baseUrl}/api/account/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "cliente.test", password: "password-molto-sicura" }),
+  });
+  assert.equal(login.status, 201);
+  assert.equal((await login.json()).data.role, "customer");
+
+  const secondRegistration = await fetch(`${baseUrl}/api/account/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      username: "altro.cliente",
+      password: "seconda-password-sicura",
+      firstName: "Altro",
+      lastName: "Cliente",
+    }),
+  });
+  const secondAccount = await secondRegistration.json();
+  const secondCookie = secondRegistration.headers.get("set-cookie").split(";", 1)[0];
+  assert.equal(secondRegistration.status, 201);
+  const secondHistory = await fetch(`${baseUrl}/api/account/orders`, { headers: { cookie: secondCookie } });
+  assert.deepEqual((await secondHistory.json()).data, []);
+
+  const adminLogin = await fetch(`${baseUrl}/api/account/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "test-admin", password: "test-admin-password" }),
+  });
+  const adminAccount = await adminLogin.json();
+  const adminCookie = adminLogin.headers.get("set-cookie").split(";", 1)[0];
+  assert.equal(adminLogin.status, 201);
+  assert.equal(adminAccount.data.role, "admin");
+  assert.equal((await fetch(`${baseUrl}/api/admin/session`, { headers: { cookie: adminCookie } })).status, 200);
+  await fetch(`${baseUrl}/api/account/logout`, { method: "POST", headers: { cookie: adminCookie } });
+
+  database.prepare("DELETE FROM user_accounts WHERE id = ?").run(registeredAccount.data.id);
+  assert.equal(database.prepare("SELECT user_account_id FROM orders WHERE id = ?").get(savedOrder.id).user_account_id, null);
+  database.prepare("DELETE FROM orders WHERE id = ?").run(savedOrder.id);
+  database.prepare("DELETE FROM user_accounts WHERE id = ?").run(secondAccount.data.id);
+});
+
 test("protegge le API amministrative e gestisce il ciclo completo di un ordine", async () => {
   const unauthorized = await fetch(`${baseUrl}/api/admin/orders`);
   assert.equal(unauthorized.status, 401);
@@ -1149,4 +1272,18 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   const logout = await adminFetch("/api/admin/logout", { method: "POST" });
   assert.equal(logout.status, 204);
   assert.equal((await adminFetch("/api/admin/session")).status, 401);
+});
+
+test("applica un unico rate limit concorrente alle credenziali amministrative", async () => {
+  const attempts = await Promise.all(
+    Array.from({ length: 6 }, (_value, index) =>
+      fetch(`${baseUrl}${index % 2 === 0 ? "/api/account/login" : "/api/admin/login"}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: "test-admin", password: `errata-${index}` }),
+      })
+    ),
+  );
+  assert.equal(attempts.filter(({ status }) => status === 429).length, 1);
+  assert.equal(attempts.filter(({ status }) => status === 401).length, 5);
 });

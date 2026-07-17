@@ -28,9 +28,12 @@
         <a href="#catalogo">Catalogo</a>
         <a href="#modello-personale">Il tuo modello</a>
       </nav>
-      <button class="cart-status" id="cart-open" type="button" aria-haspopup="dialog" aria-controls="cart-dialog" aria-label="Apri il carrello, zero elementi" disabled>
-        <span class="cart-bracket" aria-hidden="true">[</span> Carrello <span id="cart-count">00</span> <span class="cart-bracket" aria-hidden="true">]</span>
-      </button>
+      <div class="header-actions">
+        <button class="account-status" id="account-open" type="button" aria-haspopup="dialog" aria-controls="account-dialog">Accedi</button>
+        <button class="cart-status" id="cart-open" type="button" aria-haspopup="dialog" aria-controls="cart-dialog" aria-label="Apri il carrello, zero elementi" disabled>
+          <span class="cart-bracket" aria-hidden="true">[</span> Carrello <span id="cart-count">00</span> <span class="cart-bracket" aria-hidden="true">]</span>
+        </button>
+      </div>
     </header>
 
     <main id="contenuto">
@@ -287,7 +290,7 @@
               <span>Cognome</span>
               <input id="last-name" name="lastName" type="text" maxlength="60" autocomplete="family-name" required>
             </label>
-            <p>Nome e cognome sono gli unici dati richiesti. Accordi e consegna avverranno privatamente.</p>
+            <p id="checkout-customer-note">Puoi inviare la richiesta come ospite. Accordi e consegna avverranno privatamente.</p>
             <p class="checkout-feedback" id="checkout-feedback" role="status"></p>
             <button class="checkout-submit" id="checkout-submit" type="submit">Conferma e invia</button>
           </form>
@@ -305,6 +308,78 @@
         </div>
       </div>
     </dialog>
+
+    <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-title">
+      <div class="account-panel">
+        <header class="account-panel__header">
+          <div>
+            <p class="section-number">Profilo</p>
+            <h2 id="account-title">Il tuo laboratorio</h2>
+          </div>
+          <form method="dialog">
+            <button class="icon-button" type="submit" aria-label="Chiudi area account">X</button>
+          </form>
+        </header>
+
+        <div id="account-guest-view">
+          <p class="account-intro">Ordina pure come ospite oppure accedi per conservare lo storico delle tue richieste.</p>
+          <div class="account-access-grid">
+            <form class="account-form" id="account-login-form">
+              <h3>Accedi</h3>
+              <label for="login-username"><span>Nome utente</span><input id="login-username" name="username" type="text" autocomplete="username" required></label>
+              <label for="login-password"><span>Password</span><input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
+              <button type="submit">Entra</button>
+            </form>
+
+            <form class="account-form" id="account-register-form">
+              <h3>Crea account</h3>
+              <div class="account-name-grid">
+                <label for="register-first-name"><span>Nome</span><input id="register-first-name" name="firstName" type="text" maxlength="60" autocomplete="given-name" required></label>
+                <label for="register-last-name"><span>Cognome</span><input id="register-last-name" name="lastName" type="text" maxlength="60" autocomplete="family-name" required></label>
+              </div>
+              <label for="register-username"><span>Nome utente</span><input id="register-username" name="username" type="text" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9._-]{1,30}[A-Za-z0-9]" autocomplete="username" required></label>
+              <label for="register-password"><span>Password</span><input id="register-password" name="password" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label>
+              <p>Almeno 10 caratteri. Il nome utente non potra essere modificato.</p>
+              <button type="submit">Registrati</button>
+            </form>
+          </div>
+          <p class="account-feedback" id="account-guest-feedback" role="status"></p>
+        </div>
+
+        <div id="account-user-view" hidden>
+          <div class="account-profile">
+            <div>
+              <p class="section-number">Sessione attiva</p>
+              <h3 id="account-display-name" tabindex="-1"></h3>
+              <p id="account-username"></p>
+            </div>
+            <div class="account-profile__actions">
+              <a class="account-admin-link" id="account-admin-link" href="/admin.html" hidden>Control Room</a>
+              <button id="account-logout" type="button">Esci</button>
+            </div>
+          </div>
+          <section class="account-orders" aria-labelledby="account-orders-title">
+            <div class="account-orders__heading">
+              <h3 id="account-orders-title">I tuoi ordini</h3>
+              <button id="account-orders-refresh" type="button">Aggiorna</button>
+            </div>
+            <p class="account-feedback" id="account-orders-status" role="status"></p>
+            <div class="account-order-list" id="account-order-list"></div>
+          </section>
+        </div>
+      </div>
+    </dialog>
+
+    <template id="account-order-template">
+      <article class="account-order">
+        <header>
+          <div><p data-field="account-order-date"></p><h4 data-field="account-order-code"></h4></div>
+          <strong data-field="account-order-status"></strong>
+        </header>
+        <ul data-field="account-order-items"></ul>
+        <p class="account-order__total"><span>Totale catalogo</span><strong data-field="account-order-total"></strong></p>
+      </article>
+    </template>
 
     <script type="module" src="/app.js"></script>
   </body>

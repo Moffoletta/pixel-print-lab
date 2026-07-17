@@ -6,6 +6,8 @@
 
 Applicazione personale per raccogliere richieste di stampa 3D da un catalogo o da file STL e 3MF forniti dagli utenti.
 
+Gli utenti possono inviare richieste come ospiti oppure creare un account per ritrovare il proprio storico. L'amministratore usa lo stesso accesso e, dopo il login con le credenziali configurate sul server, puo aprire la Control Room direttamente dall'area account.
+
 ## Requisiti
 
 - Node.js 22 o successivo
@@ -56,6 +58,7 @@ Il file Compose usa l'immagine pubblica `ghcr.io/moffoletta/pixel-print-lab:late
 | --- | --- | --- |
 | `ADMIN_USERNAME` | nessuno | Nome utente amministrativo |
 | `ADMIN_PASSWORD` | nessuno | Password amministrativa |
+| `TRUST_PROXY` | `false` | Impostare `true` dietro un reverse proxy HTTPS fidato |
 | `PORT` | `3000` | Porta interna del container |
 | `DATABASE_PATH` | `/app/data/pixel-print-lab.db` | Percorso SQLite nel container |
 | `UPLOAD_DIRECTORY` | `/app/storage/uploads` | Upload temporanei |
@@ -75,17 +78,37 @@ L'invio email e disattivato per impostazione predefinita. Dopo aver configurato 
 
 ### Persistenza E Backup
 
-I bind mount collegano `./data` a `/app/data` e `./storage` a `/app/storage`. Database, ordini e asset restano quindi nella directory del progetto anche dopo `docker compose down` o la ricostruzione del container.
+I named volumes `pixel-print-lab-data` e `pixel-print-lab-storage` conservano database, ordini e asset senza richiedere la configurazione dei permessi delle directory host. I dati persistono dopo `docker compose down` o la ricostruzione del container. Il comando `docker compose down -v`, invece, elimina anche i volumi e deve essere usato soltanto quando si vogliono cancellare definitivamente tutti i dati.
 
 Per un backup coerente:
 
 ```sh
 docker compose stop
-tar -czf pixel-print-lab-backup.tar.gz data storage
+docker compose run --rm --no-deps --entrypoint tar app -czf - -C /app data storage > pixel-print-lab-backup.tar.gz
 docker compose start
 ```
 
-Su Linux, se il container segnala permessi insufficienti, assegnare `data` e `storage` all'utente con UID/GID `1000`, usato dal processo Node nell'immagine.
+Il backup contiene il database SQLite e tutti i file runtime presenti nei due volumi.
+
+#### Migrazione Dai Bind Mount
+
+Le installazioni precedenti alla migrazione ai named volumes usavano le directory host `./data` e `./storage`. Prima di aggiornare il Compose, arrestare il vecchio container e creare un archivio:
+
+```sh
+docker compose stop
+tar -czf pixel-print-lab-bind-backup.tar.gz data storage
+```
+
+Dopo aver installato il nuovo `compose.yml`, inizializzare i volumi e importarvi l'archivio prima del primo avvio dell'applicazione:
+
+```sh
+docker compose run --rm --no-deps \
+  -v "$PWD/pixel-print-lab-bind-backup.tar.gz:/tmp/backup.tar.gz:ro" \
+  --entrypoint tar app -xzf /tmp/backup.tar.gz -C /app
+docker compose up -d
+```
+
+Verificare ordini e catalogo prima di eliminare le vecchie directory. Senza questa importazione Docker crea un database vuoto nei nuovi volumi, mentre i dati precedenti restano nelle directory host ma non vengono montati.
 
 ### Immagine Docker
 
@@ -112,7 +135,7 @@ docker compose ps
 docker compose logs -f app
 ```
 
-Su Internet, pubblicare l'applicazione dietro un reverse proxy HTTPS e proteggere la porta 3000 con il firewall quando non deve essere raggiunta direttamente.
+Su Internet, pubblicare l'applicazione dietro un reverse proxy HTTPS, impostare `TRUST_PROXY: "true"` e proteggere la porta 3000 con il firewall quando non deve essere raggiunta direttamente. Non attivare `TRUST_PROXY` quando client non fidati possono raggiungere direttamente la porta applicativa.
 
 ## API Locali
 
@@ -124,6 +147,7 @@ Su Internet, pubblicare l'applicazione dietro un reverse proxy HTTPS e protegger
 - `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
 - `POST /api/orders`: creazione di una richiesta persistente.
 - `GET /api/orders`: elenco pubblico limitato a codice richiesta e stato.
+- `/api/account/*`: registrazione, login, logout, sessione e storico personale.
 - `/api/admin/*`: autenticazione e gestione protetta di richieste, prodotti, asset, colori e impostazioni.
 
 ## Documentazione

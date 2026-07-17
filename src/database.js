@@ -182,6 +182,43 @@ const migrations = [
       INSERT INTO app_settings (id, email_notifications_enabled) VALUES (1, 0);
     `,
   },
+  {
+    version: 8,
+    name: "add_user_accounts",
+    sql: `
+      CREATE TABLE user_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        password_hash TEXT,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'customer'
+          CHECK (role IN ('customer', 'admin')),
+        auth_source TEXT NOT NULL DEFAULT 'local'
+          CHECK (auth_source IN ('local', 'environment')),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CHECK (auth_source = 'environment' OR password_hash IS NOT NULL)
+      );
+
+      CREATE TABLE user_sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_account_id INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_account_id) REFERENCES user_accounts(id) ON DELETE CASCADE
+      );
+
+      ALTER TABLE orders
+      ADD COLUMN user_account_id INTEGER
+      REFERENCES user_accounts(id) ON DELETE SET NULL;
+
+      CREATE INDEX user_sessions_expiry_idx ON user_sessions (expires_at);
+      CREATE INDEX user_sessions_account_idx ON user_sessions (user_account_id);
+      CREATE INDEX orders_account_created_idx
+        ON orders (user_account_id, created_at DESC, id DESC);
+    `,
+  },
 ];
 
 const products = [
