@@ -2,7 +2,7 @@
 
 Questo documento rappresenta la struttura generale dell'applicazione. Deve essere aggiornato insieme al codice quando cambiano componenti, dipendenze, API, database, directory di storage o flussi principali.
 
-Ultimo aggiornamento: 17 luglio 2026, distribuzione self-hosted con Docker Compose.
+Ultimo aggiornamento: 17 luglio 2026, release GitHub e immagini GHCR.
 
 ## Diagramma Di Flusso
 
@@ -211,9 +211,12 @@ Pixel Print Lab/
 |-- data/                   Database SQLite runtime
 |-- test/                   Test automatici
 |-- docs/                   Roadmap, guida, esercizi e diagrammi
+|-- .github/workflows/      Test continui e pubblicazione release
 |-- Dockerfile              Immagine di produzione Node.js 22
 |-- compose.yml             Servizio, configurazione, health check e volumi
 |-- .dockerignore           Esclusioni dal contesto di build
+|-- CHANGELOG.md            Modifiche delle versioni pubblicate
+|-- LICENSE                 Licenza MIT
 |-- .env                    Configurazione locale esclusa da Git
 `-- package.json            Script e dipendenze
 ```
@@ -226,6 +229,8 @@ Pixel Print Lab/
 - Le variabili di Compose possono arrivare dal file `.env` o dall'ambiente dell'host; la password predefinita `admin` va sostituita prima dell'esposizione in rete.
 - Il health check interroga `/api/health` sulla porta interna configurata.
 - Una singola istanza applicativa deve usare il database SQLite; i volumi non vanno condivisi tra repliche concorrenti.
+- I tag `v*.*.*` verificano l'applicazione, pubblicano l'immagine versionata su GHCR e creano una GitHub Release.
+- Le immagini ricevono il numero completo, il numero major/minor e `latest`; i dati runtime non fanno parte dell'immagine.
 
 ## Confini Di Sicurezza
 

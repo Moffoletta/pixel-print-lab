@@ -1,5 +1,9 @@
 # Pixel Print Lab
 
+[![Test](https://github.com/Moffoletta/pixel-print-lab/actions/workflows/test.yml/badge.svg)](https://github.com/Moffoletta/pixel-print-lab/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/Moffoletta/pixel-print-lab)](https://github.com/Moffoletta/pixel-print-lab/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Applicazione personale per raccogliere richieste di stampa 3D da un catalogo o da file STL e 3MF forniti dagli utenti.
 
 ## Requisiti
@@ -48,6 +52,19 @@ Avviare l'applicazione:
 ```sh
 docker compose up -d --build
 docker compose ps
+```
+
+Per usare l'immagine gia costruita dalla release anziche compilarla localmente, aggiungere al file `.env`:
+
+```dotenv
+IMAGE_NAME=ghcr.io/moffoletta/pixel-print-lab:0.1.0
+```
+
+Quindi eseguire:
+
+```sh
+docker compose pull app
+docker compose up -d --no-build
 ```
 
 Il primo avvio applica le migrazioni e inserisce il catalogo dimostrativo. L'applicazione e disponibile su `http://localhost:3000`; il pannello amministrativo si trova su `/admin.html`.
@@ -108,3 +125,10 @@ Prima di un backup arrestare il servizio e archiviare entrambi i volumi indicati
 - [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md): schema grafico, componenti e flussi dell'applicazione.
 - [`docs/guida-progetto.md`](docs/guida-progetto.md): guida tecnica progressiva.
 - [`docs/esercizi.md`](docs/esercizi.md): esercizi didattici separati.
+- [`CHANGELOG.md`](CHANGELOG.md): modifiche incluse nelle versioni pubblicate.
+
+## Release E Licenza
+
+Le versioni stabili sono pubblicate nella pagina [Releases](https://github.com/Moffoletta/pixel-print-lab/releases). I tag seguono il versionamento semantico e generano automaticamente l'immagine Docker su `ghcr.io/moffoletta/pixel-print-lab`.
+
+Il progetto e distribuito con licenza [MIT](LICENSE).

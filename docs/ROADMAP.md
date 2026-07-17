@@ -22,6 +22,13 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 ## Completato
 
+### Release GitHub e distribuzione immagine
+
+- [x] Scelta e aggiunta la licenza MIT.
+- [x] Aggiunto changelog versionato.
+- [x] Automatizzate verifica, pubblicazione GHCR e creazione della GitHub Release.
+- [x] Documentato l'avvio tramite immagine Docker precompilata.
+
 ### Distribuzione self-hosted con Docker
 
 - [x] Aggiunta immagine di produzione basata su Node.js 22.

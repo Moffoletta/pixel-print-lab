@@ -1,0 +1,17 @@
+# Changelog
+
+Le modifiche rilevanti del progetto sono raccolte in questo file.
+
+## [0.1.0] - 2026-07-17
+
+### Aggiunto
+
+- Catalogo persistente con prodotti, colori e viewer STL/3MF.
+- Carrello e invio di richieste con file o link personali.
+- Tracking pubblico limitato a codice e stato.
+- Pannello amministrativo protetto per ordini, catalogo e colori.
+- Ispezione sicura di STL, 3MF generici e progetti Bambu Studio.
+- Distribuzione self-hosted con Docker Compose e volumi persistenti.
+- Test automatici e build Docker tramite GitHub Actions.
+
+[0.1.0]: https://github.com/Moffoletta/pixel-print-lab/releases/tag/v0.1.0
