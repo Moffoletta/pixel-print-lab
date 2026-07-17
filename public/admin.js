@@ -3,6 +3,12 @@ const loginForm = document.querySelector("#login-form");
 const loginFeedback = document.querySelector("#login-feedback");
 const dashboardView = document.querySelector("#dashboard-view");
 const logoutButton = document.querySelector("#logout-button");
+const settingsButton = document.querySelector("#settings-button");
+const settingsDialog = document.querySelector("#settings-dialog");
+const settingsForm = document.querySelector("#settings-form");
+const emailNotificationsInput = document.querySelector("#email-notifications-enabled");
+const smtpStatus = document.querySelector("#smtp-status");
+const settingsFeedback = document.querySelector("#settings-feedback");
 const orderCount = document.querySelector("#order-count");
 const orderListStatus = document.querySelector("#order-list-status");
 const orderList = document.querySelector("#order-list");
@@ -66,6 +72,7 @@ function formatDate(value) {
 }
 
 function showLogin() {
+  if (settingsDialog.open) settingsDialog.close();
   dashboardView.hidden = true;
   loginView.hidden = false;
   loginForm.reset();
@@ -76,6 +83,18 @@ async function showDashboard() {
   dashboardView.hidden = false;
   await loadCatalog();
   await loadOrders();
+}
+
+async function loadSettings() {
+  settingsFeedback.textContent = "";
+  settingsFeedback.classList.remove("admin-feedback--error");
+  const settings = await api("/api/admin/settings");
+  emailNotificationsInput.checked = settings.emailNotificationsEnabled;
+  emailNotificationsInput.disabled = !settings.smtpConfigured && !settings.emailNotificationsEnabled;
+  smtpStatus.textContent = settings.smtpConfigured
+    ? `SMTP configurato. Destinatario: ${settings.smtpRecipient}`
+    : "SMTP non configurato. Aggiungi le variabili richieste prima di attivare l'invio.";
+  smtpStatus.dataset.configured = String(settings.smtpConfigured);
 }
 
 function renderOrderList() {
@@ -340,8 +359,42 @@ loginForm.addEventListener("submit", async (event) => {
 });
 
 logoutButton.addEventListener("click", async () => {
+  if (settingsDialog.open) settingsDialog.close();
   await api("/api/admin/logout", { method: "POST" });
   showLogin();
+});
+
+settingsButton.addEventListener("click", async () => {
+  settingsDialog.showModal();
+  try {
+    await loadSettings();
+  } catch (error) {
+    settingsFeedback.textContent = error.message;
+    settingsFeedback.classList.add("admin-feedback--error");
+  }
+});
+
+settingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = settingsForm.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  settingsFeedback.textContent = "";
+  settingsFeedback.classList.remove("admin-feedback--error");
+  try {
+    await api("/api/admin/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ emailNotificationsEnabled: emailNotificationsInput.checked }),
+    });
+    settingsFeedback.textContent = "Impostazioni salvate.";
+    await loadSettings();
+    settingsFeedback.textContent = "Impostazioni salvate.";
+  } catch (error) {
+    settingsFeedback.textContent = error.message;
+    settingsFeedback.classList.add("admin-feedback--error");
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 saveOrderStatusButton.addEventListener("click", async () => {

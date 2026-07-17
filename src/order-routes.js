@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { constants as fileConstants, mkdirSync } from "node:fs";
-import { copyFile, stat, unlink, writeFile } from "node:fs/promises";
+import { copyFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -18,7 +18,6 @@ import {
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultOrderFileDirectory = path.join(currentDirectory, "..", "storage", "orders");
-export const defaultEmailOutboxDirectory = path.join(currentDirectory, "..", "storage", "emails");
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ORDER_ITEMS = 100;
@@ -85,8 +84,6 @@ function formatEuro(cents) {
 
 export function buildEmail({ code, firstName, lastName, items, catalogTotalCents }) {
   const lines = [
-    `Oggetto: Nuova richiesta ${code}`,
-    "",
     `Codice: ${code}`,
     `Nome: ${firstName}`,
     `Cognome: ${lastName}`,
@@ -122,11 +119,10 @@ export function registerOrderRoutes(
     database,
     uploadDirectory = defaultUploadDirectory,
     orderFileDirectory = defaultOrderFileDirectory,
-    emailOutboxDirectory = defaultEmailOutboxDirectory,
+    emailService,
   },
 ) {
   mkdirSync(orderFileDirectory, { recursive: true });
-  mkdirSync(emailOutboxDirectory, { recursive: true });
 
   const findProduct = database.prepare(`
     SELECT id, code, name, price_cents
@@ -142,6 +138,9 @@ export function registerOrderRoutes(
     SELECT code, status
     FROM orders
     ORDER BY created_at DESC, id DESC
+  `);
+  const getSettings = database.prepare(`
+    SELECT email_notifications_enabled FROM app_settings WHERE id = 1
   `);
   const insertOrder = database.prepare(`
     INSERT INTO orders (code, first_name, last_name, catalog_total_cents)
@@ -355,11 +354,16 @@ export function registerOrderRoutes(
       );
       await Promise.all([...temporaryFiles].map((filename) => unlink(filename).catch(console.error)));
 
-      try {
-        const email = buildEmail(order);
-        await writeFile(path.join(emailOutboxDirectory, `${code}.txt`), email, { flag: "wx" });
-      } catch (error) {
-        console.error(`Email simulata non creata per ${code}.`, error);
+      if (getSettings.get().email_notifications_enabled) {
+        try {
+          if (!emailService?.configured) throw new Error("SMTP non configurato.");
+          await emailService.sendOrderEmail({
+            subject: `Nuova richiesta ${code}`,
+            text: buildEmail(order),
+          });
+        } catch (error) {
+          console.error(`Email non inviata per ${code}.`, error);
+        }
       }
 
       return response.status(201).json({ data: { code } });

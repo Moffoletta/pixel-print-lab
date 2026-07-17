@@ -12,30 +12,42 @@ import {
   UPLOAD_TTL_MS,
 } from "../src/custom-model-routes.js";
 import { migrateDatabase, openDatabase, seedDatabase } from "../src/database.js";
+import { createEmailService } from "../src/email-service.js";
 
 let server;
 let baseUrl;
 let database;
 let uploadDirectory;
 let orderFileDirectory;
-let emailOutboxDirectory;
 let catalogDirectory;
+let sentEmails;
+let rejectEmails;
+let emailService;
 
 before(async () => {
   uploadDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-test-"));
   orderFileDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-orders-"));
-  emailOutboxDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-emails-"));
   catalogDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-catalog-"));
+  sentEmails = [];
+  rejectEmails = false;
+  emailService = {
+    configured: true,
+    recipient: "ordini@example.test",
+    async sendOrderEmail(message) {
+      if (rejectEmails) throw new Error("SMTP non disponibile");
+      sentEmails.push(message);
+    },
+  };
   database = openDatabase(":memory:");
   seedDatabase(database);
   server = createApp({
     database,
     uploadDirectory,
     orderFileDirectory,
-    emailOutboxDirectory,
     catalogDirectory,
     adminUsername: "test-admin",
     adminPassword: "test-admin-password",
+    emailService,
   }).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -48,7 +60,7 @@ after(async () => {
   });
   database.close();
   await Promise.all(
-    [uploadDirectory, orderFileDirectory, emailOutboxDirectory, catalogDirectory].map((directory) =>
+    [uploadDirectory, orderFileDirectory, catalogDirectory].map((directory) =>
       rm(directory, { recursive: true, force: true }),
     ),
   );
@@ -191,6 +203,36 @@ test("mostra i dettagli amministrativi dell'ordine in sola lettura", async () =>
   assert.doesNotMatch(page, /id="add-catalog-item"/);
   assert.doesNotMatch(page, /id="save-order"/);
   assert.doesNotMatch(page, /data-field="remove-item"/);
+  assert.match(page, /id="settings-button"/);
+  assert.match(page, /id="settings-dialog"/);
+  assert.match(page, /id="email-notifications-enabled"/);
+});
+
+test("riconosce e usa una configurazione SMTP completa", async () => {
+  assert.equal(createEmailService({}).configured, false);
+  assert.equal(createEmailService({ SMTP_HOST: "smtp.example.test" }).configured, false);
+  let transportOptions;
+  let sentMessage;
+  const service = createEmailService({
+    SMTP_HOST: "smtp.example.test",
+    SMTP_PORT: "465",
+    SMTP_SECURE: "true",
+    SMTP_FROM: "noreply@example.test",
+    SMTP_TO: "ordini@example.test",
+  }, (options) => {
+    transportOptions = options;
+    return { async sendMail(message) { sentMessage = message; } };
+  });
+  assert.equal(service.configured, true);
+  assert.equal(service.recipient, "ordini@example.test");
+  assert.equal(transportOptions.secure, true);
+  await service.sendOrderEmail({ subject: "Nuovo ordine", text: "Dettagli" });
+  assert.deepEqual(sentMessage, {
+    from: "noreply@example.test",
+    to: "ordini@example.test",
+    subject: "Nuovo ordine",
+    text: "Dettagli",
+  });
 });
 
 test("espone i prodotti visibili ordinati", async () => {
@@ -239,7 +281,8 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 6);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 7);
+  assert.equal(database.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
 });
 
 test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli ID", () => {
@@ -300,7 +343,8 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
     assert.equal(legacyDatabase.prepare("SELECT model_format FROM order_items WHERE id = 1").get().model_format, "stl");
     assert.equal(legacyDatabase.prepare("SELECT status FROM orders WHERE id = 1").get().status, "in_attesa");
-    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 6);
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 7);
+    assert.equal(legacyDatabase.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
     legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
     const nextId = Number(legacyDatabase.prepare(`
       INSERT INTO products (
@@ -618,7 +662,7 @@ test("conserva progetto Bambu 3MF, primo piatto e metadati nell'ordine", async (
   await assert.rejects(stat(path.join(orderFileDirectory, storedItem.model_filename)), { code: "ENOENT" });
 });
 
-test("crea una richiesta mista con snapshot, file permanente ed email simulata", async () => {
+test("crea una richiesta mista con snapshot e file permanente senza email automatica", async () => {
   const stl = `solid order
 facet normal 0 0 1
   outer loop
@@ -687,13 +731,86 @@ endsolid order`;
 
   await stat(path.join(orderFileDirectory, items[1].model_filename));
   assert.equal((await fetch(`${baseUrl}${upload.modelUrl}`)).status, 404);
-  const email = await readFile(path.join(emailOutboxDirectory, `${body.data.code}.txt`), "utf8");
-  assert.match(email, new RegExp(`Codice: ${body.data.code}`));
-  assert.match(email, /Nome: Mauro/);
-  assert.match(email, /Vaso Orbitale/);
-  assert.match(email, /ordine-personale\.stl/);
-  assert.match(email, /https:\/\/www\.makerworld\.com\/en\/models\/123-test/);
-  assert.match(email, /Totale catalogo: 24,00 EUR/);
+  assert.equal(sentEmails.length, 0);
+});
+
+test("gestisce l'invio SMTP opzionale dalle impostazioni amministrative", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/admin/settings`)).status, 401);
+  const cookie = await authenticateAdmin();
+  const adminFetch = (pathName, options = {}) => fetch(`${baseUrl}${pathName}`, {
+    ...options,
+    headers: { cookie, ...(options.headers ?? {}) },
+  });
+  const initial = (await (await adminFetch("/api/admin/settings")).json()).data;
+  assert.deepEqual(initial, {
+    emailNotificationsEnabled: false,
+    smtpConfigured: true,
+    smtpRecipient: "ordini@example.test",
+  });
+
+  const invalid = await adminFetch("/api/admin/settings", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ emailNotificationsEnabled: "true" }),
+  });
+  assert.equal(invalid.status, 400);
+
+  emailService.configured = false;
+  const unavailable = await adminFetch("/api/admin/settings", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ emailNotificationsEnabled: true }),
+  });
+  assert.equal(unavailable.status, 409);
+  assert.equal((await unavailable.json()).error.code, "SMTP_NOT_CONFIGURED");
+  emailService.configured = true;
+
+  const enabled = await adminFetch("/api/admin/settings", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ emailNotificationsEnabled: true }),
+  });
+  assert.equal(enabled.status, 200);
+  assert.equal(database.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 1);
+
+  const createOrder = (firstName) => fetch(`${baseUrl}/api/orders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName,
+      lastName: "Email",
+      items: [{ type: "catalog", productId: 2, colorId: 4, quantity: 1 }],
+    }),
+  });
+  const sentResponse = await createOrder("Invio");
+  const sentCode = (await sentResponse.json()).data.code;
+  assert.equal(sentResponse.status, 201);
+  assert.equal(sentEmails.length, 1);
+  assert.equal(sentEmails[0].subject, `Nuova richiesta ${sentCode}`);
+  assert.match(sentEmails[0].text, /Nome: Invio/);
+  assert.match(sentEmails[0].text, /Dock Controller/);
+
+  rejectEmails = true;
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  let failedResponse;
+  try {
+    failedResponse = await createOrder("Errore");
+  } finally {
+    console.error = originalConsoleError;
+    rejectEmails = false;
+  }
+  const failedCode = (await failedResponse.json()).data.code;
+  assert.equal(failedResponse.status, 201);
+  assert.ok(database.prepare("SELECT id FROM orders WHERE code = ?").get(failedCode));
+
+  const disabled = await adminFetch("/api/admin/settings", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ emailNotificationsEnabled: false }),
+  });
+  assert.equal(disabled.status, 200);
+  database.prepare("DELETE FROM orders WHERE code IN (?, ?)").run(sentCode, failedCode);
 });
 
 test("espone pubblicamente soltanto codice e stato in ordine recente", async () => {
@@ -920,7 +1037,6 @@ endsolid catalog`;
   });
   database.prepare("DELETE FROM orders WHERE id = ?").run(orderId);
   database.prepare("DELETE FROM colors WHERE id = ?").run(color.id);
-  await rm(path.join(emailOutboxDirectory, "SNAPSHOT-TEST.txt"), { force: true });
 });
 
 test("protegge le API amministrative e gestisce il ciclo completo di un ordine", async () => {
@@ -1028,7 +1144,6 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   assert.equal(deleteResponse.status, 204);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, 0);
   assert.equal((await readdir(orderFileDirectory)).length, 0);
-  assert.equal((await readdir(emailOutboxDirectory)).length, 0);
   assert.equal((await (await fetch(`${baseUrl}/api/orders`)).json()).data.some((order) => order.code === detail.code), false);
 
   const logout = await adminFetch("/api/admin/logout", { method: "POST" });

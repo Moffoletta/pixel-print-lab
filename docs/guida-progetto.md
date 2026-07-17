@@ -765,7 +765,7 @@ Il flusso finale e:
 4. nuova validazione sul server;
 5. salvataggio nel database;
 6. spostamento logico degli STL nell'area permanente;
-7. creazione dell'email simulata;
+7. eventuale invio della notifica SMTP se attivata;
 8. risposta con il solo codice di conferma;
 9. svuotamento del carrello locale.
 
@@ -870,17 +870,9 @@ La risposta pubblica e intenzionalmente minima:
 }
 ```
 
-### Email Simulata
+### Notifica Email
 
-Non viene inviato alcun messaggio reale. Per ogni richiesta viene creato:
-
-```text
-storage/emails/<codice>.txt
-```
-
-Il file contiene codice, nome, cognome, righe, colori, quantita, prezzi noti, file, link e totale catalogo. Questa cartella e esclusa da Git perche contiene dati personali e dettagli delle richieste.
-
-La scrittura usa la modalita esclusiva: un file esistente non viene sovrascritto. Un errore della simulazione viene registrato, ma non annulla una richiesta gia salvata correttamente.
+Il riepilogo testuale contiene codice, nome, cognome, righe, colori, quantita, prezzi noti, file, link e totale catalogo. L'invio reale tramite SMTP viene aggiunto successivamente ed e disattivato per impostazione predefinita.
 
 ### Riepilogo Finale
 
@@ -906,7 +898,7 @@ Il dialog non mostra nuovamente dati personali o dettagli dell'ordine. Poiche no
 
 ### Dati Personali
 
-Nome e cognome sono dati personali e vengono conservati nel database locale fino all'eliminazione manuale della richiesta. Database, email simulate e file degli ordini non devono essere inseriti nel repository.
+Nome e cognome sono dati personali e vengono conservati nel database locale fino all'eliminazione manuale della richiesta. Database e file degli ordini non devono essere inseriti nel repository. Se l'email automatica e attiva, gli stessi dettagli vengono trasmessi anche al server SMTP configurato.
 
 Prima di una pubblicazione reale saranno necessari controllo degli accessi, backup, HTTPS e informativa sul trattamento dei dati.
 
@@ -920,7 +912,7 @@ La fase verifica:
 - prezzo riletto dal database e snapshot storico;
 - codice nel formato previsto;
 - file permanente e rimozione del temporaneo;
-- contenuto completo dell'email simulata;
+- contenuto completo del riepilogo email;
 - rifiuto di nome, quantita, link e upload manipolati;
 - assenza di record dopo richieste non valide;
 - riepilogo e conferma nel browser;
@@ -929,7 +921,7 @@ La fase verifica:
 
 ## 22. Esito Della Fase 7
 
-Il percorso pubblico e ora completo fino alla registrazione della richiesta. Ordini, snapshot, file ed email simulate sono persistenti; la prossima fase introdurra accesso amministrativo e gestione delle richieste.
+Il percorso pubblico e ora completo fino alla registrazione della richiesta. Ordini, snapshot e file sono persistenti; la fase successiva introduce accesso amministrativo e gestione delle richieste.
 
 ## 23. Fase 8 - Accesso Amministrativo E Ordini
 
@@ -1038,7 +1030,6 @@ Gli snapshot dell'ordine sono separati dal catalogo corrente. Le successive modi
 - nome e cognome;
 - righe e relativi snapshot;
 - totale noto;
-- email simulata;
 - file originali associati.
 
 ### Rimozione Dei File
@@ -1047,7 +1038,6 @@ Eliminando un intero ordine:
 
 - la foreign key cancella le righe;
 - vengono eliminati gli STL permanenti associati;
-- viene eliminata l'email simulata;
 - l'ordine scompare dall'archivio.
 
 La cancellazione non usa un cestino ed e definitiva. L'interfaccia richiede una conferma esplicita.
@@ -1276,7 +1266,7 @@ Il pannello usa un endpoint dedicato:
 PATCH /api/admin/orders/:id/status
 ```
 
-Rendere il dettaglio in sola lettura e separare lo stato evita di riscrivere elementi, snapshot, file o email. L'endpoint richiede la sessione admin, valida esattamente l'ID e accetta soltanto i tre valori previsti.
+Rendere il dettaglio in sola lettura e separare lo stato evita di riscrivere elementi, snapshot o file. L'endpoint richiede la sessione admin, valida esattamente l'ID e accetta soltanto i tre valori previsti.
 
 ### Interfaccia Pubblica
 
@@ -1299,3 +1289,18 @@ Il requisito mantiene tutte le richieste visibili fino alla cancellazione. Di co
 ## 30. Esito Del Tracciamento
 
 Ogni richiesta dispone ora di uno stato controllato dal pannello e visibile nella pagina principale. La serializzazione pubblica resta separata dai dati amministrativi e il codice completo e trattato esplicitamente come identificatore pubblico.
+
+## 31. Notifiche SMTP Opzionali
+
+La migrazione 7 crea la riga unica `app_settings`, con `email_notifications_enabled` inizialmente disattivato. Il valore viene letto alla creazione di ogni ordine, quindi non serve riavviare il server dopo una modifica.
+
+La rotella nella testata amministrativa apre un dialog nativo. Le API protette sono:
+
+```text
+GET /api/admin/settings
+PUT /api/admin/settings
+```
+
+Il browser riceve soltanto stato di configurazione, destinatario e valore del toggle. Host, utente e password SMTP restano nelle variabili d'ambiente. L'attivazione viene rifiutata finche `SMTP_HOST`, `SMTP_FROM` e `SMTP_TO` non sono validi; utente e password devono essere forniti insieme.
+
+Quando l'opzione e attiva, il server invia dopo il commit un messaggio testuale con oggetto `Nuova richiesta <codice>`. SMTP non puo partecipare alla transazione SQLite: un errore viene registrato senza cancellare l'ordine o i file gia salvati.

@@ -15,10 +15,10 @@ export function createApp({
   database,
   uploadDirectory,
   orderFileDirectory,
-  emailOutboxDirectory,
   catalogDirectory,
   adminUsername,
   adminPassword,
+  emailService,
 } = {}) {
   if (!database) {
     throw new TypeError("createApp richiede una connessione al database");
@@ -43,7 +43,7 @@ export function createApp({
     database,
     uploadDirectory,
     orderFileDirectory,
-    emailOutboxDirectory,
+    emailService,
   });
   registerAdminRoutes(app, {
     database,
@@ -51,7 +51,7 @@ export function createApp({
     adminPassword,
     catalogDirectory,
     orderFileDirectory,
-    emailOutboxDirectory,
+    emailService,
   });
 
   return app;

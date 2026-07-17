@@ -2,6 +2,18 @@
 
 Le modifiche rilevanti del progetto sono raccolte in questo file.
 
+## [0.2.0] - 2026-07-17
+
+### Aggiunto
+
+- Invio SMTP opzionale per i nuovi ordini.
+- Popup impostazioni amministrative richiamato dalla rotella.
+
+### Modificato
+
+- Rimossi outbox email simulato ed esercizi didattici.
+- Semplificato Docker Compose usando bind mount per `data` e `storage`.
+
 ## [0.1.0] - 2026-07-17
 
 ### Aggiunto
@@ -14,4 +26,5 @@ Le modifiche rilevanti del progetto sono raccolte in questo file.
 - Distribuzione self-hosted con Docker Compose e volumi persistenti.
 - Test automatici e build Docker tramite GitHub Actions.
 
+[0.2.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Moffoletta/pixel-print-lab/releases/tag/v0.1.0

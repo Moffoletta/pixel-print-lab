@@ -38,15 +38,6 @@ npm.cmd test
 
 Sono richiesti Docker Engine con il plugin Compose oppure Docker Desktop.
 
-Creare un file `.env` nella directory del progetto. Compose lo legge automaticamente:
-
-```dotenv
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin
-HOST_PORT=3000
-BIND_ADDRESS=127.0.0.1
-```
-
 Avviare l'applicazione:
 
 ```sh
@@ -54,42 +45,56 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Per usare l'immagine gia costruita dalla release anziche compilarla localmente, aggiungere al file `.env`:
-
-```dotenv
-IMAGE_NAME=ghcr.io/moffoletta/pixel-print-lab:0.1.0
-```
-
-Quindi eseguire:
-
-```sh
-docker compose pull app
-docker compose up -d --no-build
-```
-
 Il primo avvio applica le migrazioni e inserisce il catalogo dimostrativo. L'applicazione e disponibile su `http://localhost:3000`; il pannello amministrativo si trova su `/admin.html`.
 
-Le credenziali Docker predefinite sono `admin` / `admin`. Sono adatte soltanto a una prova locale: modificare `ADMIN_PASSWORD` nel file `.env` o nella sezione `environment` di `compose.yml` prima di rendere il servizio accessibile dalla rete.
+### Configurazione
 
-`compose.yml` permette di configurare tutte le variabili runtime tramite il file `.env`, l'ambiente della shell oppure una modifica diretta alla sezione `environment`:
+Il file Compose contiene soltanto build, porta e persistenza. Le variabili sono presenti come commenti: scommentare la sezione `environment` e soltanto le righe necessarie. Per accedere alla Control Room sono indispensabili `ADMIN_USERNAME` e `ADMIN_PASSWORD`.
 
 | Variabile | Valore predefinito | Uso |
 | --- | --- | --- |
-| `ADMIN_USERNAME` | `admin` | Nome utente amministrativo |
-| `ADMIN_PASSWORD` | `admin` | Password amministrativa da modificare prima della pubblicazione |
-| `HOST_PORT` | `3000` | Porta pubblicata dall'host |
-| `BIND_ADDRESS` | `127.0.0.1` | Interfaccia di ascolto dell'host |
+| `ADMIN_USERNAME` | nessuno | Nome utente amministrativo |
+| `ADMIN_PASSWORD` | nessuno | Password amministrativa |
 | `PORT` | `3000` | Porta interna del container |
-| `IMAGE_NAME` | `pixel-print-lab:local` | Nome dell'immagine costruita |
 | `DATABASE_PATH` | `/app/data/pixel-print-lab.db` | Percorso SQLite nel container |
 | `UPLOAD_DIRECTORY` | `/app/storage/uploads` | Upload temporanei |
 | `ORDER_FILE_DIRECTORY` | `/app/storage/orders` | Modelli associati agli ordini |
-| `EMAIL_OUTBOX_DIRECTORY` | `/app/storage/emails` | Email simulate |
 | `CATALOG_DIRECTORY` | `/app/storage/catalog` | Asset amministrativi del catalogo |
+| `SMTP_HOST` | vuoto | Host del server SMTP |
+| `SMTP_PORT` | `587` | Porta SMTP |
+| `SMTP_SECURE` | `false` | `true` per TLS diretto, normalmente sulla porta 465 |
+| `SMTP_USER` | vuoto | Utente SMTP facoltativo |
+| `SMTP_PASSWORD` | vuoto | Password SMTP, richiesta insieme all'utente |
+| `SMTP_FROM` | vuoto | Mittente delle notifiche |
+| `SMTP_TO` | vuoto | Destinatario delle notifiche ordine |
 
-I volumi nominati `database` e `storage` conservano i dati durante ricostruzioni e aggiornamenti. `docker compose down` non li elimina; `docker compose down --volumes` cancella invece definitivamente database, ordini e asset.
+Se si cambia `PORT`, aggiornare anche il lato destro della mappatura in `ports`. Utente e password SMTP devono essere configurati entrambi oppure lasciati entrambi vuoti. Per TLS diretto, normalmente sulla porta 465, usare `SMTP_SECURE: true`; sulla porta 587 usare normalmente `false` per STARTTLS.
 
-Il bind predefinito accetta connessioni soltanto dall'host ed e adatto a un reverse proxy locale. Impostare `BIND_ADDRESS=0.0.0.0` soltanto se la porta deve essere raggiungibile direttamente dalla rete. I percorsi runtime devono restare sotto `/app/data` e `/app/storage`, a meno di aggiungere i volumi corrispondenti in Compose.
+L'invio email e disattivato per impostazione predefinita. Dopo aver configurato SMTP, aprire il pannello admin, selezionare la rotella e attivare "Email nuovi ordini". Un errore SMTP viene registrato ma non annulla un ordine gia salvato.
+
+### Persistenza E Backup
+
+I bind mount collegano `./data` a `/app/data` e `./storage` a `/app/storage`. Database, ordini e asset restano quindi nella directory del progetto anche dopo `docker compose down` o la ricostruzione del container.
+
+Per un backup coerente:
+
+```sh
+docker compose stop
+tar -czf pixel-print-lab-backup.tar.gz data storage
+docker compose start
+```
+
+Su Linux, se il container segnala permessi insufficienti, assegnare `data` e `storage` all'utente con UID/GID `1000`, usato dal processo Node nell'immagine.
+
+### Immagine Della Release
+
+Per usare l'immagine pubblicata invece di costruirla, sostituire `build: .` nel Compose con:
+
+```yaml
+image: ghcr.io/moffoletta/pixel-print-lab:0.2.0
+```
+
+Quindi eseguire `docker compose pull` e `docker compose up -d`.
 
 Per aggiornare il progetto:
 
@@ -105,7 +110,7 @@ docker compose ps
 docker compose logs -f app
 ```
 
-Prima di un backup arrestare il servizio e archiviare entrambi i volumi indicati da `docker volume ls`. SQLite e storage devono essere ripristinati insieme. Su Internet, pubblicare l'applicazione dietro un reverse proxy HTTPS e non esporre direttamente la porta del container se non necessario.
+Su Internet, pubblicare l'applicazione dietro un reverse proxy HTTPS e proteggere la porta 3000 con il firewall quando non deve essere raggiunta direttamente.
 
 ## API Locali
 
@@ -117,14 +122,13 @@ Prima di un backup arrestare il servizio e archiviare entrambi i volumi indicati
 - `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
 - `POST /api/orders`: creazione di una richiesta persistente.
 - `GET /api/orders`: elenco pubblico limitato a codice richiesta e stato.
-- `/api/admin/*`: autenticazione e gestione protetta di richieste, prodotti, asset e colori.
+- `/api/admin/*`: autenticazione e gestione protetta di richieste, prodotti, asset, colori e impostazioni.
 
 ## Documentazione
 
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): Kanban e avanzamento.
 - [`docs/ARCHITETTURA.md`](docs/ARCHITETTURA.md): schema grafico, componenti e flussi dell'applicazione.
 - [`docs/guida-progetto.md`](docs/guida-progetto.md): guida tecnica progressiva.
-- [`docs/esercizi.md`](docs/esercizi.md): esercizi didattici separati.
 - [`CHANGELOG.md`](CHANGELOG.md): modifiche incluse nelle versioni pubblicate.
 
 ## Release E Licenza

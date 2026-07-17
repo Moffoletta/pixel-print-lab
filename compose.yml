@@ -1,40 +1,26 @@
 services:
   app:
-    build:
-      context: .
-    image: "${IMAGE_NAME:-pixel-print-lab:local}"
+    build: .
     restart: unless-stopped
-    init: true
-    read_only: true
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${HOST_PORT:-3000}:${PORT:-3000}"
-    environment:
-      NODE_ENV: production
-      PORT: "${PORT:-3000}"
-      DATABASE_PATH: "${DATABASE_PATH:-/app/data/pixel-print-lab.db}"
-      UPLOAD_DIRECTORY: "${UPLOAD_DIRECTORY:-/app/storage/uploads}"
-      ORDER_FILE_DIRECTORY: "${ORDER_FILE_DIRECTORY:-/app/storage/orders}"
-      EMAIL_OUTBOX_DIRECTORY: "${EMAIL_OUTBOX_DIRECTORY:-/app/storage/emails}"
-      CATALOG_DIRECTORY: "${CATALOG_DIRECTORY:-/app/storage/catalog}"
-      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin}"
+      - "3000:3000"
     volumes:
-      - database:/app/data
-      - storage:/app/storage
-    tmpfs:
-      - /tmp:size=64m,mode=1777
-    healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(response=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    stop_grace_period: 15s
+      - ./data:/app/data
+      - ./storage:/app/storage
 
-volumes:
-  database:
-  storage:
+    # Scommenta e modifica soltanto le variabili che ti servono.
+    # environment:
+    #   PORT: "3000"
+    #   DATABASE_PATH: /app/data/pixel-print-lab.db
+    #   UPLOAD_DIRECTORY: /app/storage/uploads
+    #   ORDER_FILE_DIRECTORY: /app/storage/orders
+    #   CATALOG_DIRECTORY: /app/storage/catalog
+    #   ADMIN_USERNAME: admin
+    #   ADMIN_PASSWORD: admin
+    #   SMTP_HOST: smtp.example.com
+    #   SMTP_PORT: "587"
+    #   SMTP_SECURE: "false"
+    #   SMTP_USER: utente-smtp
+    #   SMTP_PASSWORD: password-smtp
+    #   SMTP_FROM: "Pixel Print Lab <noreply@example.com>"
+    #   SMTP_TO: ordini@example.com

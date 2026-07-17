@@ -6,7 +6,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 ## In corso
 
-- Nessuna attivita. Il tracciamento pubblico e concluso.
+- Nessuna attivita. Le impostazioni SMTP sono concluse.
 
 ## Da fare
 
@@ -22,6 +22,15 @@ Ultimo aggiornamento: 17 luglio 2026.
 
 ## Completato
 
+### Impostazioni email SMTP
+
+- [x] Aggiunta configurazione SMTP tramite ambiente e Docker Compose.
+- [x] Salvata nel database l'attivazione delle notifiche, disabilitata per default.
+- [x] Aggiunte API amministrative protette per lettura e aggiornamento.
+- [x] Creata rotella con popup impostazioni responsive e accessibile.
+- [x] Reso l'errore SMTP non distruttivo per gli ordini gia salvati.
+- [x] Rimossi outbox simulato ed esercizi non piu necessari.
+
 ### Release GitHub e distribuzione immagine
 
 - [x] Scelta e aggiunta la licenza MIT.
@@ -32,10 +41,10 @@ Ultimo aggiornamento: 17 luglio 2026.
 ### Distribuzione self-hosted con Docker
 
 - [x] Aggiunta immagine di produzione basata su Node.js 22.
-- [x] Configurato Docker Compose con variabili d'ambiente sovrascrivibili.
-- [x] Separati database e storage in volumi persistenti.
-- [x] Eseguito il container come utente non-root con filesystem in sola lettura.
-- [x] Aggiunti setup idempotente, health check e arresto controllato.
+- [x] Configurato un Docker Compose essenziale con variabili commentate.
+- [x] Separati database e storage in bind mount persistenti.
+- [x] Eseguito il container come utente non-root.
+- [x] Aggiunti setup idempotente e riavvio automatico.
 - [x] Documentati avvio, aggiornamento, persistenza e backup.
 - [x] Aggiunta validazione automatica di Compose e build immagine in GitHub Actions.
 
@@ -51,7 +60,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Posizionato il tracking sotto il catalogo e collegato dalla hero.
 - [x] Aggiunti polling controllato, aggiornamento dopo l'invio e supporto reduced motion.
 - [x] Verificati privacy, autorizzazione, accessibilita, responsive e migrazione.
-- [x] Aggiornati test, guida, esercizi e architettura.
+- [x] Aggiornati test, guida e architettura.
 
 ### Supporto 3MF e piatto standard
 
@@ -65,7 +74,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Conservato il 3MF originale e il riepilogo di ispezione negli ordini.
 - [x] Aggiunto download 3MF protetto nel pannello amministrativo.
 - [x] Verificati sicurezza, persistenza, compatibilita STL precedente e progetti Bambu multi-piatto.
-- [x] Aggiornati test, guida, esercizi e architettura.
+- [x] Aggiornati test, guida e architettura.
 
 ### Fase 9 - Gestione catalogo e colori
 
@@ -77,7 +86,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Impedito il riutilizzo degli ID eliminati tramite migrazione SQLite.
 - [x] Conservati invariati gli snapshot degli ordini esistenti.
 - [x] Verificati autorizzazione, file, filtri pubblici e layout responsive.
-- [x] Aggiornati test, guida tecnica ed esercizi.
+- [x] Aggiornati test e guida tecnica.
 
 ### Fase 8 - Accesso amministrativo e ordini
 
@@ -87,10 +96,10 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Create API protette per elenco, dettaglio e download STL.
 - [x] Resi consultabili in sola lettura cliente, righe, snapshot e totale.
 - [x] Limitate le modifiche dell'ordine a stato pubblico e cancellazione definitiva.
-- [x] Eliminati ordine, file ed email in modo coordinato.
+- [x] Eliminati ordine e file in modo coordinato.
 - [x] Creato pannello Control Room responsive.
 - [x] Verificati login, gestione e logout su desktop e mobile.
-- [x] Aggiornati test, guida tecnica ed esercizi.
+- [x] Aggiornati test e guida tecnica.
 
 ### Fase 7 - Invio delle richieste
 
@@ -99,11 +108,11 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Rivalidati prodotti, prezzi, colori, quantita, link e upload.
 - [x] Copiati gli STL in storage permanente con compensazione degli errori.
 - [x] Generato un codice richiesta univoco.
-- [x] Creata un'email simulata con tutti i dettagli.
+- [x] Preparato il riepilogo testuale dell'ordine per le notifiche.
 - [x] Mostrata conferma con il solo codice.
 - [x] Svuotato il carrello soltanto dopo il successo.
 - [x] Verificato il flusso misto su desktop e mobile.
-- [x] Aggiornati test, guida tecnica ed esercizi.
+- [x] Aggiornati test e guida tecnica.
 
 ### Fase 6 - Modelli personali
 
@@ -117,7 +126,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Esclusi i modelli personali dal totale economico.
 - [x] Gestite verifica, scadenza e cancellazione dei temporanei.
 - [x] Verificati file e link su desktop e mobile.
-- [x] Aggiornati test, guida tecnica ed esercizi.
+- [x] Aggiornati test e guida tecnica.
 
 ### Fase 5 - Visualizzatore 3D
 
@@ -129,7 +138,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Caricato il viewer soltanto dopo la richiesta dell'utente.
 - [x] Gestiti caricamento, errore, ridimensionamento e rilascio risorse.
 - [x] Verificati entrambi i modelli su desktop e mobile.
-- [x] Aggiornati test, guida tecnica ed esercizi.
+- [x] Aggiornati test e guida tecnica.
 
 ### Fase 4 - Configurazione e carrello
 
@@ -141,7 +150,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Riconciliato il carrello con prodotti e colori correnti.
 - [x] Creato un dialog responsive e accessibile per il riepilogo.
 - [x] Verificato il flusso completo in un browser reale.
-- [x] Aggiunti test, guida tecnica ed esercizi.
+- [x] Aggiunti test e guida tecnica.
 
 ### Fase 3 - Database e API
 
@@ -152,7 +161,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Collegato il catalogo pubblico alle API tramite `fetch`.
 - [x] Usato un database isolato in memoria nei test.
 - [x] Verificate interfaccia, API, setup ripetuto e dipendenze.
-- [x] Aggiornati README, guida tecnica ed esercizi.
+- [x] Aggiornati README e guida tecnica.
 
 ### Fase 2 - Catalogo statico
 
@@ -162,7 +171,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Definiti i componenti visuali pixel art di base.
 - [x] Aggiunte navigazione semantica e scorciatoia al contenuto.
 - [x] Verificate le viste desktop e a larghezza ridotta.
-- [x] Aggiornati test, guida tecnica ed esercizi.
+- [x] Aggiornati test e guida tecnica.
 
 ### Fase 1 - Fondamenta
 
@@ -172,7 +181,7 @@ Ultimo aggiornamento: 17 luglio 2026.
 - [x] Creata una pagina pubblica temporanea.
 - [x] Aggiunto un endpoint di controllo dello stato.
 - [x] Aggiunti test automatici di base.
-- [x] Create guida tecnica ed esercizi separati.
+- [x] Creata la guida tecnica progressiva.
 - [x] Documentati avvio locale e vincoli del progetto.
 
 ## Regole Del Kanban

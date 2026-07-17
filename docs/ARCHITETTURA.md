@@ -2,7 +2,7 @@
 
 Questo documento rappresenta la struttura generale dell'applicazione. Deve essere aggiornato insieme al codice quando cambiano componenti, dipendenze, API, database, directory di storage o flussi principali.
 
-Ultimo aggiornamento: 17 luglio 2026, release GitHub e immagini GHCR.
+Ultimo aggiornamento: 17 luglio 2026, impostazioni admin e notifiche SMTP opzionali.
 
 ## Diagramma Di Flusso
 
@@ -45,15 +45,14 @@ flowchart LR
     Storage --> Upload[Upload STL/3MF temporanei]
     Storage --> FileOrdini[STL/3MF degli ordini]
     Storage --> FileCatalogo[Immagini e STL del catalogo]
-    Storage --> Email[Email simulate]
   end
+
+  SMTP[Server SMTP esterno]
 
   subgraph Docker[Distribuzione Docker Compose]
     Container[Container Node.js non-root]
-    VolumeDB[Volume database]
-    VolumeStorage[Volume storage]
-    Health[Health check HTTP]
-    Health --> Container
+    BindData[Bind mount ./data]
+    BindStorage[Bind mount ./storage]
   end
 
   Cliente --> Pubblica
@@ -67,9 +66,10 @@ flowchart LR
   APIAdmin --> DB
   Validazione --> Storage
   Asset --> Storage
+  API --> SMTP
   Container --> API
-  VolumeDB --> DB
-  VolumeStorage --> Storage
+  BindData --> DB
+  BindStorage --> Storage
 ```
 
 ## Componenti Applicativi
@@ -101,6 +101,7 @@ flowchart TB
     CustomRoutes[custom-model-routes.js]
     OrderRoutes[order-routes.js]
     AdminRoutes[admin-routes.js]
+    EmailService[email-service.js]
     CatalogAssets[catalog-assets.js]
     ModelFiles[model-files.js]
     Database[database.js]
@@ -109,6 +110,7 @@ flowchart TB
     AppJS --> CustomRoutes
     AppJS --> OrderRoutes
     AppJS --> AdminRoutes
+    ServerJS --> EmailService
     AppJS --> CatalogAssets
     CustomRoutes --> ModelFiles
     OrderRoutes --> ModelFiles
@@ -116,6 +118,7 @@ flowchart TB
     OrderRoutes --> Database
     AdminRoutes --> Database
     AdminRoutes --> CatalogAssets
+    OrderRoutes --> EmailService
   end
 
   FrontendPubblico --> CatalogRoutes
@@ -133,6 +136,7 @@ sequenceDiagram
   participant E as Express
   participant D as SQLite
   participant S as Storage
+  participant M as Server SMTP
 
   C->>B: Seleziona prodotto, colore e quantita
   B->>E: Richiede catalogo e colori attivi
@@ -146,7 +150,11 @@ sequenceDiagram
   C->>B: Invia nome, cognome e carrello
   B->>E: POST /api/orders
   E->>D: Rivalida e salva ordine e snapshot
-  E->>S: Rende permanenti i file e genera email
+  E->>S: Rende permanenti i file
+  E->>D: Legge impostazione email
+  opt Email automatica attiva
+    E->>M: Invia riepilogo ordine
+  end
   E-->>B: Restituisce il codice richiesta
   B->>E: GET /api/orders
   E->>D: Legge solo codice e stato
@@ -178,6 +186,9 @@ sequenceDiagram
   A->>P: Cambia stato richiesta
   P->>E: PATCH stato protetto
   E->>D: Aggiorna soltanto lo stato
+  A->>P: Apre la rotella impostazioni
+  P->>E: GET/PUT impostazioni protette
+  E->>D: Legge o aggiorna il toggle email
   Note over P,D: Cliente, righe e snapshot restano in sola lettura
 ```
 
@@ -191,7 +202,7 @@ Pixel Print Lab/
 |   |-- cart.js             Stato e regole del carrello
 |   |-- viewer.js           Anteprima STL/3MF con Three.js
 |   |-- admin.html          Control Room
-|   |-- admin.js            Ordini, prodotti e colori
+|   |-- admin.js            Ordini, catalogo e impostazioni
 |   `-- images/ e models/   Asset dimostrativi
 |-- src/                    Server e regole applicative
 |   |-- server.js           Avvio e configurazione ambiente
@@ -202,18 +213,18 @@ Pixel Print Lab/
 |   |-- model-files.js      Ispezione sicura STL/3MF e primo piatto
 |   |-- order-routes.js
 |   |-- admin-routes.js     Sessioni e API protette
+|   |-- email-service.js    Trasporto SMTP opzionale
 |   `-- catalog-assets.js   Upload e servizio asset catalogo
 |-- storage/                File runtime esclusi da Git
 |   |-- uploads/            STL/3MF temporanei
 |   |-- orders/             STL/3MF permanenti degli ordini
 |   |-- catalog/            Immagini e STL amministrativi
-|   `-- emails/             Email simulate
 |-- data/                   Database SQLite runtime
 |-- test/                   Test automatici
-|-- docs/                   Roadmap, guida, esercizi e diagrammi
+|-- docs/                   Roadmap, guida e diagrammi
 |-- .github/workflows/      Test continui e pubblicazione release
 |-- Dockerfile              Immagine di produzione Node.js 22
-|-- compose.yml             Servizio, configurazione, health check e volumi
+|-- compose.yml             Servizio essenziale e bind mount persistenti
 |-- .dockerignore           Esclusioni dal contesto di build
 |-- CHANGELOG.md            Modifiche delle versioni pubblicate
 |-- LICENSE                 Licenza MIT
@@ -224,11 +235,10 @@ Pixel Print Lab/
 ## Distribuzione Docker
 
 - Il container esegue migrazioni e seed idempotente prima di avviare il server.
-- Il processo applicativo usa l'utente non privilegiato `node` e un filesystem in sola lettura.
-- SQLite risiede nel volume `database`; upload, ordini, catalogo ed email simulate risiedono nel volume `storage`.
-- Le variabili di Compose possono arrivare dal file `.env` o dall'ambiente dell'host; la password predefinita `admin` va sostituita prima dell'esposizione in rete.
-- Il health check interroga `/api/health` sulla porta interna configurata.
-- Una singola istanza applicativa deve usare il database SQLite; i volumi non vanno condivisi tra repliche concorrenti.
+- Il processo applicativo usa l'utente non privilegiato `node`.
+- `./data` e `./storage` sono bind mount rispettivamente per SQLite e file runtime.
+- Il Compose mantiene commentate le variabili facoltative; credenziali admin e SMTP si attivano scommentando quelle necessarie.
+- Una singola istanza applicativa deve usare il database SQLite; i bind mount non vanno condivisi tra repliche concorrenti.
 - I tag `v*.*.*` verificano l'applicazione, pubblicano l'immagine versionata su GHCR e creano una GitHub Release.
 - Le immagini ricevono il numero completo, il numero major/minor e `latest`; i dati runtime non fanno parte dell'immagine.
 
@@ -236,7 +246,7 @@ Pixel Print Lab/
 
 - Le pagine statiche non contengono dati amministrativi.
 - Tutte le API `/api/admin/*` richiedono una sessione valida.
-- Le credenziali sono lette da `.env`, che e escluso da Git.
+- Le credenziali sono lette dall'ambiente; `.env` locale e file runtime sono esclusi da Git.
 - I dati inviati dal browser vengono rivalidati dal server.
 - Gli upload usano nomi UUID, limiti di dimensione e verifica del contenuto.
 - I 3MF vengono ispezionati lato server prima dell'anteprima e confrontati con un volume standard 256x256x256 mm.
@@ -244,6 +254,7 @@ Pixel Print Lab/
 - Gli asset del catalogo sono pubblici, ma possono essere caricati soltanto dall'amministratore.
 - Gli ordini conservano snapshot indipendenti dalle modifiche al catalogo.
 - Il pannello non espone API per modificare cliente o righe; consente soltanto stato e cancellazione dell'ordine.
+- Le credenziali SMTP restano nell'ambiente; il pannello espone soltanto configurazione disponibile, destinatario e toggle persistente.
 - Il tracking pubblico espone soltanto codice completo e stato; il codice e un identificatore pubblico, non un segreto.
 
 ## Regola Di Manutenzione

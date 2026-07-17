@@ -9,7 +9,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --chown=node:node public ./public
 COPY --chown=node:node src ./src
 
-RUN mkdir -p /app/data /app/storage/catalog /app/storage/uploads /app/storage/orders /app/storage/emails \
+RUN mkdir -p /app/data /app/storage/catalog /app/storage/uploads /app/storage/orders \
     && chown -R node:node /app/data /app/storage
 
 USER node

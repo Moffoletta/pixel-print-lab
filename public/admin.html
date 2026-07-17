@@ -32,7 +32,7 @@
             <span class="brand__mark" aria-hidden="true"></span>
             <span>Pixel Print Lab</span>
           </a>
-          <div>
+          <div class="admin-header__center">
             <p class="section-number">Pannello amministrativo</p>
             <h1 id="dashboard-title">Control Room</h1>
             <nav class="admin-nav" aria-label="Sezioni amministrative">
@@ -40,7 +40,10 @@
               <button class="admin-nav__button" data-view="catalog" type="button">Catalogo</button>
             </nav>
           </div>
-          <button class="admin-logout" id="logout-button" type="button">Esci</button>
+          <div class="admin-actions">
+            <button class="admin-settings-button" id="settings-button" type="button" aria-label="Impostazioni" aria-haspopup="dialog" aria-controls="settings-dialog" title="Impostazioni">&#9881;</button>
+            <button class="admin-logout" id="logout-button" type="button">Esci</button>
+          </div>
         </header>
 
         <div class="admin-workspace" id="orders-view">
@@ -152,6 +155,29 @@
         </div>
       </section>
     </main>
+
+    <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+      <div class="settings-panel">
+        <header>
+          <div><p class="section-number">Control Room</p><h2 id="settings-title">Impostazioni</h2></div>
+          <form method="dialog"><button class="settings-close" type="submit" aria-label="Chiudi impostazioni">&times;</button></form>
+        </header>
+        <form id="settings-form">
+          <section class="settings-email" aria-labelledby="settings-email-title">
+            <p class="section-number">Notifiche</p>
+            <h3 id="settings-email-title">Email nuovi ordini</h3>
+            <p id="smtp-status"></p>
+            <label class="settings-toggle">
+              <input id="email-notifications-enabled" type="checkbox">
+              <span>Invia automaticamente un'email quando viene creato un ordine</span>
+            </label>
+            <p class="settings-hint">Server e credenziali SMTP si configurano nelle variabili d'ambiente del server o di Docker Compose.</p>
+          </section>
+          <p class="admin-feedback" id="settings-feedback" role="status"></p>
+          <button class="save-order settings-save" type="submit">Salva impostazioni</button>
+        </form>
+      </div>
+    </dialog>
 
     <template id="order-list-template">
       <button class="order-list-item" type="button">

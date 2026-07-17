@@ -119,15 +119,15 @@
     <text x="735" y="648" class="dark-title">API protette</text>
     <text x="735" y="682" class="dark-copy">Sessione HttpOnly</text>
     <text x="735" y="706" class="dark-copy">CRUD catalogo</text>
-    <text x="735" y="730" class="dark-copy">Ordini e stato</text>
+    <text x="735" y="730" class="dark-copy">Ordini / impost.</text>
   </g>
 
   <g filter="url(#shadow)">
     <rect x="1045" y="597" width="210" height="170" rx="3" fill="#f3f0e6" stroke="#17201a" stroke-width="4"/>
     <rect x="1045" y="597" width="210" height="35" fill="#70d69a"/>
     <text x="1070" y="672" class="node-title">Persistenza</text>
-    <text x="1070" y="702" class="node-copy">Volume SQLite</text>
-    <text x="1070" y="726" class="node-copy">Volume storage</text>
+    <text x="1070" y="702" class="node-copy">Bind ./data</text>
+    <text x="1070" y="726" class="node-copy">Bind ./storage</text>
     <text x="1070" y="750" class="node-copy">Snapshot storici</text>
   </g>
 

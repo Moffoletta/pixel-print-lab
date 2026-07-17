@@ -11,7 +11,6 @@ import {
 } from "./catalog-assets.js";
 import { modelContentType } from "./model-files.js";
 import {
-  defaultEmailOutboxDirectory,
   defaultOrderFileDirectory,
   ORDER_STATUSES,
 } from "./order-routes.js";
@@ -208,7 +207,7 @@ export function registerAdminRoutes(
     adminPassword,
     catalogDirectory,
     orderFileDirectory = defaultOrderFileDirectory,
-    emailOutboxDirectory = defaultEmailOutboxDirectory,
+    emailService,
   },
 ) {
   const sessions = new Map();
@@ -255,6 +254,20 @@ export function registerAdminRoutes(
   const updateOrderStatus = database.prepare(`
     UPDATE orders SET status = ? WHERE id = ?
   `);
+  const getSettings = database.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1");
+  const updateEmailNotifications = database.prepare(`
+    UPDATE app_settings
+    SET email_notifications_enabled = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = 1
+  `);
+
+  function serializeSettings() {
+    return {
+      emailNotificationsEnabled: Boolean(getSettings.get().email_notifications_enabled),
+      smtpConfigured: Boolean(emailService?.configured),
+      smtpRecipient: emailService?.recipient ?? null,
+    };
+  }
 
   function pruneSessions() {
     const now = Date.now();
@@ -376,6 +389,25 @@ export function registerAdminRoutes(
 
   app.get("/api/admin/session", requireAdmin, (_request, response) => {
     response.json({ data: { authenticated: true } });
+  });
+
+  app.get("/api/admin/settings", requireAdmin, (_request, response) => {
+    response.json({ data: serializeSettings() });
+  });
+
+  app.put("/api/admin/settings", requireAdmin, (request, response) => {
+    try {
+      if (typeof request.body?.emailNotificationsEnabled !== "boolean") {
+        throw new AdminError("INVALID_SETTINGS", "L'impostazione email non e valida.");
+      }
+      if (request.body.emailNotificationsEnabled && !emailService?.configured) {
+        throw new AdminError("SMTP_NOT_CONFIGURED", "Configura SMTP prima di attivare le email.", 409);
+      }
+      updateEmailNotifications.run(request.body.emailNotificationsEnabled ? 1 : 0);
+      return response.json({ data: serializeSettings() });
+    } catch (error) {
+      return sendError(response, error);
+    }
   });
 
   app.get("/api/admin/catalog", requireAdmin, (_request, response) => {
@@ -537,14 +569,9 @@ export function registerAdminRoutes(
         listItems.all(id).map((item) => item.model_filename).filter(Boolean),
       );
       database.prepare("DELETE FROM orders WHERE id = ?").run(id);
-      await Promise.all([
-        ...[...modelFilenames].map((filename) =>
-          unlink(path.join(orderFileDirectory, filename)).catch(console.error),
-        ),
-        unlink(path.join(emailOutboxDirectory, `${order.code}.txt`)).catch((error) => {
-          if (error.code !== "ENOENT") console.error(error);
-        }),
-      ]);
+      await Promise.all([...modelFilenames].map((filename) =>
+        unlink(path.join(orderFileDirectory, filename)).catch(console.error),
+      ));
       response.status(204).end();
     } catch (error) {
       return sendError(response, error);

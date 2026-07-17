@@ -168,6 +168,20 @@ const migrations = [
       CHECK (status IN ('in_attesa', 'in_lavorazione', 'completato'));
     `,
   },
+  {
+    version: 7,
+    name: "add_app_settings",
+    sql: `
+      CREATE TABLE app_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        email_notifications_enabled INTEGER NOT NULL DEFAULT 0
+          CHECK (email_notifications_enabled IN (0, 1)),
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT INTO app_settings (id, email_notifications_enabled) VALUES (1, 0);
+    `,
+  },
 ];
 
 const products = [

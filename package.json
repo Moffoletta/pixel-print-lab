@@ -1,6 +1,6 @@
 {
   "name": "pixel-print-lab",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Applicazione personale per raccogliere richieste di stampa 3D.",
   "type": "module",
@@ -17,6 +17,7 @@
     "better-sqlite3": "^12.2.0",
     "express": "^5.1.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.3",
     "saxes": "^6.0.0",
     "sharp": "^0.34.3",
     "three": "^0.178.0",
