@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: ghcr.io/moffoletta/pixel-print-lab:latest
     restart: unless-stopped
     ports:
       - "3000:3000"

@@ -41,7 +41,8 @@ Sono richiesti Docker Engine con il plugin Compose oppure Docker Desktop.
 Avviare l'applicazione:
 
 ```sh
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 docker compose ps
 ```
 
@@ -49,7 +50,7 @@ Il primo avvio applica le migrazioni e inserisce il catalogo dimostrativo. L'app
 
 ### Configurazione
 
-Il file Compose contiene soltanto build, porta e persistenza. Le variabili sono presenti come commenti: scommentare la sezione `environment` e soltanto le righe necessarie. Per accedere alla Control Room sono indispensabili `ADMIN_USERNAME` e `ADMIN_PASSWORD`.
+Il file Compose usa l'immagine pubblica `ghcr.io/moffoletta/pixel-print-lab:latest` e configura porta e persistenza. Le variabili sono presenti come commenti: scommentare la sezione `environment` e soltanto le righe necessarie. Per accedere alla Control Room sono indispensabili `ADMIN_USERNAME` e `ADMIN_PASSWORD`.
 
 | Variabile | Valore predefinito | Uso |
 | --- | --- | --- |
@@ -86,21 +87,22 @@ docker compose start
 
 Su Linux, se il container segnala permessi insufficienti, assegnare `data` e `storage` all'utente con UID/GID `1000`, usato dal processo Node nell'immagine.
 
-### Immagine Della Release
+### Immagine Docker
 
-Per usare l'immagine pubblicata invece di costruirla, sostituire `build: .` nel Compose con:
+Il Compose usa l'immagine pubblicata con il tag `latest`:
 
 ```yaml
-image: ghcr.io/moffoletta/pixel-print-lab:0.2.0
+image: ghcr.io/moffoletta/pixel-print-lab:latest
 ```
 
-Quindi eseguire `docker compose pull` e `docker compose up -d`.
+Il tag `latest` viene aggiornato quando viene pubblicata una nuova release. Per installare l'immagine aggiornata, eseguire `docker compose pull` e `docker compose up -d`.
 
 Per aggiornare il progetto:
 
 ```sh
 git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 Per controllare stato e log:
