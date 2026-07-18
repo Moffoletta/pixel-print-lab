@@ -6,6 +6,7 @@ import { after, before, test } from "node:test";
 import Database from "better-sqlite3";
 import yazl from "yazl";
 import { createApp } from "../src/app.js";
+import { createAuthService } from "../src/auth-service.js";
 import {
   cleanupExpiredUploads,
   MAX_STL_FILE_SIZE,
@@ -281,7 +282,7 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 8);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 9);
   assert.equal(database.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
 });
 
@@ -343,8 +344,9 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
     assert.equal(legacyDatabase.prepare("SELECT model_format FROM order_items WHERE id = 1").get().model_format, "stl");
     assert.equal(legacyDatabase.prepare("SELECT status FROM orders WHERE id = 1").get().status, "in_attesa");
-    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 8);
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 9);
     assert.equal(legacyDatabase.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
+    assert.equal(legacyDatabase.prepare("SELECT admin_username FROM app_settings WHERE id = 1").get().admin_username, null);
     legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
     const nextId = Number(legacyDatabase.prepare(`
       INSERT INTO products (
@@ -747,6 +749,8 @@ test("gestisce l'invio SMTP opzionale dalle impostazioni amministrative", async 
     emailNotificationsEnabled: false,
     smtpConfigured: true,
     smtpRecipient: "ordini@example.test",
+    adminUsername: "test-admin",
+    adminCredentialsCustomized: false,
   });
 
   const invalid = await adminFetch("/api/admin/settings", {
@@ -812,6 +816,79 @@ test("gestisce l'invio SMTP opzionale dalle impostazioni amministrative", async 
   });
   assert.equal(disabled.status, 200);
   database.prepare("DELETE FROM orders WHERE code IN (?, ?)").run(sentCode, failedCode);
+});
+
+test("gestisce il cambio delle credenziali amministrative", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/admin/credentials`, { method: "PUT" })).status, 401);
+  const cookie = await authenticateAdmin();
+  const putCredentials = (body, sessionCookie = cookie) => fetch(`${baseUrl}/api/admin/credentials`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: sessionCookie },
+    body: JSON.stringify(body),
+  });
+  const loginAdmin = (username, password) => fetch(`${baseUrl}/api/admin/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+  const wrongPassword = await putCredentials({ currentPassword: "password-sbagliata", password: "nuova-password-1" });
+  assert.equal(wrongPassword.status, 401);
+  assert.equal((await wrongPassword.json()).error.code, "INVALID_CREDENTIALS");
+
+  const invalidUsername = await putCredentials({ currentPassword: "test-admin-password", username: "NO!" });
+  assert.equal(invalidUsername.status, 400);
+  assert.equal((await invalidUsername.json()).error.code, "INVALID_USERNAME");
+
+  const shortPassword = await putCredentials({ currentPassword: "test-admin-password", password: "corta" });
+  assert.equal(shortPassword.status, 400);
+  assert.equal((await shortPassword.json()).error.code, "INVALID_PASSWORD");
+
+  const noChanges = await putCredentials({ currentPassword: "test-admin-password" });
+  assert.equal(noChanges.status, 400);
+  assert.equal((await noChanges.json()).error.code, "INVALID_CREDENTIALS_UPDATE");
+
+  database.prepare(`
+    INSERT INTO user_accounts (username, password_hash, first_name, last_name)
+    VALUES ('cliente-esistente', 'hash-fittizio', 'Carlo', 'Rossi')
+  `).run();
+  const conflict = await putCredentials({ currentPassword: "test-admin-password", username: "cliente-esistente" });
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json()).error.code, "USERNAME_UNAVAILABLE");
+
+  const changed = await putCredentials({
+    currentPassword: "test-admin-password",
+    username: "nuovo-admin",
+    password: "nuova-password-segreta",
+  });
+  assert.equal(changed.status, 200);
+  assert.equal((await changed.json()).data.username, "nuovo-admin");
+
+  const staleSession = await fetch(`${baseUrl}/api/admin/settings`, { headers: { cookie } });
+  assert.equal(staleSession.status, 401);
+  assert.equal((await loginAdmin("test-admin", "test-admin-password")).status, 401);
+
+  const newLogin = await loginAdmin("nuovo-admin", "nuova-password-segreta");
+  assert.equal(newLogin.status, 201);
+  const newCookie = newLogin.headers.get("set-cookie").split(";", 1)[0];
+  const settings = (await (await fetch(`${baseUrl}/api/admin/settings`, { headers: { cookie: newCookie } })).json()).data;
+  assert.equal(settings.adminUsername, "nuovo-admin");
+  assert.equal(settings.adminCredentialsCustomized, true);
+
+  const reserved = await fetch(`${baseUrl}/api/account/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "nuovo-admin", password: "password-cliente", firstName: "Anna", lastName: "Bianchi" }),
+  });
+  assert.equal(reserved.status, 409);
+
+  const freshAuth = createAuthService({ database, adminUsername: "test-admin", adminPassword: "test-admin-password" });
+  freshAuth.resetAdminCredentials();
+  const overrideRow = database.prepare("SELECT admin_username, admin_password_hash FROM app_settings WHERE id = 1").get();
+  assert.equal(overrideRow.admin_username, null);
+  assert.equal(overrideRow.admin_password_hash, null);
+  assert.equal((await loginAdmin("test-admin", "test-admin-password")).status, 201);
+  database.prepare("DELETE FROM user_accounts WHERE username = 'cliente-esistente'").run();
 });
 
 test("espone pubblicamente soltanto codice e stato in ordine recente", async () => {

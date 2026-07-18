@@ -1,5 +1,6 @@
 import { unlink } from "node:fs/promises";
 import path from "node:path";
+import { AuthError } from "./auth-service.js";
 import {
   CatalogAssetError,
   createCatalogUpload,
@@ -23,7 +24,7 @@ class AdminError extends Error {
 }
 
 function sendError(response, error) {
-  if (error instanceof AdminError || error instanceof CatalogAssetError) {
+  if (error instanceof AdminError || error instanceof CatalogAssetError || error instanceof AuthError) {
     return response.status(error.status).json({ error: { code: error.code, message: error.message } });
   }
   if (error?.name === "MulterError") {
@@ -172,6 +173,7 @@ export function registerAdminRoutes(
     catalogDirectory,
     orderFileDirectory = defaultOrderFileDirectory,
     emailService,
+    authService,
   },
 ) {
   const catalogUpload = createCatalogUpload(catalogDirectory);
@@ -224,10 +226,13 @@ export function registerAdminRoutes(
   `);
 
   function serializeSettings() {
+    const adminAccess = authService.adminAccess();
     return {
       emailNotificationsEnabled: Boolean(getSettings.get().email_notifications_enabled),
       smtpConfigured: Boolean(emailService?.configured),
       smtpRecipient: emailService?.recipient ?? null,
+      adminUsername: adminAccess.username,
+      adminCredentialsCustomized: adminAccess.customized,
     };
   }
 
@@ -290,6 +295,19 @@ export function registerAdminRoutes(
       }
       updateEmailNotifications.run(request.body.emailNotificationsEnabled ? 1 : 0);
       return response.json({ data: serializeSettings() });
+    } catch (error) {
+      return sendError(response, error);
+    }
+  });
+
+  app.put("/api/admin/credentials", requireAdmin, async (request, response) => {
+    try {
+      const result = await authService.changeAdminCredentials({
+        currentPassword: request.body?.currentPassword,
+        username: request.body?.username,
+        password: request.body?.password,
+      });
+      return response.json({ data: result });
     } catch (error) {
       return sendError(response, error);
     }

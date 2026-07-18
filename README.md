@@ -26,6 +26,14 @@ Aprire `http://localhost:3000`. Per verificare il server aprire `http://localhos
 
 Il pannello amministrativo e disponibile su `http://localhost:3000/admin.html` dopo aver impostato `ADMIN_USERNAME` e `ADMIN_PASSWORD` nel file locale `.env`.
 
+Dal menu con la rotella della Control Room l'amministratore puo cambiare nome utente e password. Le credenziali personalizzate sono salvate nel database e hanno la precedenza su quelle d'ambiente; dopo il cambio e richiesto un nuovo accesso. Per ripristinare le credenziali delle variabili d'ambiente:
+
+```powershell
+npm.cmd run admin:reset
+```
+
+Con Docker il ripristino si esegue nel container: `docker compose exec app node src/reset-admin.js`.
+
 `db:setup` applica le migrazioni SQLite e inserisce i prodotti e i colori dimostrativi. Il comando puo essere ripetuto senza creare duplicati.
 
 Su questo computer viene usato `npm.cmd` perche PowerShell impedisce l'esecuzione di `npm.ps1`. Non e necessario cambiare la policy di sicurezza.
@@ -56,8 +64,8 @@ Il file Compose usa l'immagine pubblica `ghcr.io/moffoletta/pixel-print-lab:late
 
 | Variabile | Valore predefinito | Uso |
 | --- | --- | --- |
-| `ADMIN_USERNAME` | nessuno | Nome utente amministrativo |
-| `ADMIN_PASSWORD` | nessuno | Password amministrativa |
+| `ADMIN_USERNAME` | nessuno | Nome utente amministrativo iniziale |
+| `ADMIN_PASSWORD` | nessuno | Password amministrativa iniziale |
 | `TRUST_PROXY` | `false` | Impostare `true` dietro un reverse proxy HTTPS fidato |
 | `PORT` | `3000` | Porta interna del container |
 | `DATABASE_PATH` | `/app/data/pixel-print-lab.db` | Percorso SQLite nel container |
@@ -172,7 +180,7 @@ docker compose -f compose.cloudflare.yml logs -f cloudflared app
 - `POST /api/orders`: creazione di una richiesta persistente.
 - `GET /api/orders`: elenco pubblico limitato a codice richiesta e stato.
 - `/api/account/*`: registrazione, login, logout, sessione e storico personale.
-- `/api/admin/*`: autenticazione e gestione protetta di richieste, prodotti, asset, colori e impostazioni.
+- `/api/admin/*`: autenticazione e gestione protetta di richieste, prodotti, asset, colori, impostazioni e credenziali amministrative.
 
 ## Documentazione
 

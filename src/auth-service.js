@@ -145,6 +145,26 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
   `);
   const deleteSession = database.prepare("DELETE FROM user_sessions WHERE token_hash = ?");
   const deleteExpiredSessions = database.prepare("DELETE FROM user_sessions WHERE expires_at <= ?");
+  const getCredentialsOverride = database.prepare(`
+    SELECT admin_username AS username, admin_password_hash AS passwordHash
+    FROM app_settings WHERE id = 1
+  `);
+  const storeCredentialsOverride = database.prepare(`
+    UPDATE app_settings
+    SET admin_username = @username, admin_password_hash = @passwordHash, updated_at = CURRENT_TIMESTAMP
+    WHERE id = 1
+  `);
+  const clearCredentialsOverride = database.prepare(`
+    UPDATE app_settings
+    SET admin_username = NULL, admin_password_hash = NULL, updated_at = CURRENT_TIMESTAMP
+    WHERE id = 1
+  `);
+  const deleteEnvironmentSessions = database.prepare(`
+    DELETE FROM user_sessions
+    WHERE user_account_id IN (
+      SELECT id FROM user_accounts WHERE auth_source = 'environment'
+    )
+  `);
 
   database.exec(`
     DELETE FROM user_sessions
@@ -156,32 +176,41 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
     WHERE auth_source = 'environment';
   `);
 
-  function environmentAdmin() {
-    const existing = findAccountByUsername.get(configuredAdminUsername);
+  function credentialsOverride() {
+    const row = getCredentialsOverride.get();
+    return row?.username && row?.passwordHash ? row : null;
+  }
+
+  function effectiveAdminUsername() {
+    return credentialsOverride()?.username ?? configuredAdminUsername;
+  }
+
+  function environmentAdmin(adminUsername) {
+    const existing = findAccountByUsername.get(adminUsername);
     if (existing && existing.auth_source !== "environment") {
       throw new AuthError(
         "ADMIN_ACCOUNT_CONFLICT",
-        "ADMIN_USERNAME coincide con un account cliente esistente. Configura un nome utente amministrativo diverso.",
+        "Il nome utente amministrativo coincide con un account cliente esistente. Configura un nome utente diverso.",
         503,
       );
     }
     if (existing) {
       reactivateCurrentEnvironmentAdmin.run(existing.id);
-      return findAccountByUsername.get(configuredAdminUsername);
+      return findAccountByUsername.get(adminUsername);
     }
     const previousEnvironmentAccount = findEnvironmentAccount.get();
     if (previousEnvironmentAccount) {
       reactivateEnvironmentAdmin.run({
         id: previousEnvironmentAccount.id,
-        username: configuredAdminUsername,
-        firstName: configuredAdminUsername,
+        username: adminUsername,
+        firstName: adminUsername,
         lastName: "Admin",
       });
-      return findAccountByUsername.get(configuredAdminUsername);
+      return findAccountByUsername.get(adminUsername);
     }
     const id = Number(insertEnvironmentAdmin.run({
-      username: configuredAdminUsername,
-      firstName: configuredAdminUsername,
+      username: adminUsername,
+      firstName: adminUsername,
       lastName: "Admin",
     }).lastInsertRowid);
     return database.prepare("SELECT * FROM user_accounts WHERE id = ?").get(id);
@@ -214,7 +243,7 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
 
   async function register({ username: rawUsername, password: rawPassword, firstName, lastName }) {
     const username = validateUsername(rawUsername);
-    if (adminConfigured && username === configuredAdminUsername) {
+    if (username === effectiveAdminUsername()) {
       throw new AuthError("USERNAME_UNAVAILABLE", "Il nome utente non e disponibile.", 409);
     }
     if (findAccountByUsername.get(username)) {
@@ -241,11 +270,16 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
   async function login(usernameValue, passwordValue, { adminOnly = false } = {}) {
     const username = normalizeUsername(usernameValue);
     const password = typeof passwordValue === "string" ? passwordValue : "";
-    if (
+    const override = credentialsOverride();
+    if (override) {
+      if (username === override.username && await verifyPassword(password, override.passwordHash)) {
+        return environmentAdmin(override.username);
+      }
+    } else if (
       adminConfigured && username === configuredAdminUsername &&
       credentialMatches(password, adminPassword)
     ) {
-      return environmentAdmin();
+      return environmentAdmin(configuredAdminUsername);
     }
 
     if (adminOnly) {
@@ -306,8 +340,65 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
     setSessionCookie(request, response, "", 0);
   }
 
+  const applyCredentialsOverride = database.transaction((values) => {
+    storeCredentialsOverride.run(values);
+    deleteEnvironmentSessions.run();
+  });
+
+  async function changeAdminCredentials({ currentPassword, username: rawUsername, password: rawPassword }) {
+    const override = credentialsOverride();
+    if (!override && !adminConfigured) {
+      throw new AuthError(
+        "ADMIN_NOT_CONFIGURED",
+        "Imposta ADMIN_USERNAME e ADMIN_PASSWORD prima di usare il pannello amministrativo.",
+        503,
+      );
+    }
+    const candidate = typeof currentPassword === "string" ? currentPassword : "";
+    const currentPasswordValid = override
+      ? await verifyPassword(candidate, override.passwordHash)
+      : credentialMatches(candidate, adminPassword);
+    if (!currentPasswordValid) {
+      throw new AuthError("INVALID_CREDENTIALS", "La password attuale non e corretta.", 401);
+    }
+    const hasUsername = typeof rawUsername === "string" && rawUsername.trim().length > 0;
+    const hasPassword = typeof rawPassword === "string" && rawPassword.length > 0;
+    if (!hasUsername && !hasPassword) {
+      throw new AuthError("INVALID_CREDENTIALS_UPDATE", "Indica un nuovo nome utente o una nuova password.");
+    }
+    const username = hasUsername ? validateUsername(rawUsername) : override?.username ?? configuredAdminUsername;
+    const conflictingAccount = findAccountByUsername.get(username);
+    if (conflictingAccount && conflictingAccount.auth_source !== "environment") {
+      throw new AuthError("USERNAME_UNAVAILABLE", "Il nome utente non e disponibile.", 409);
+    }
+    let passwordHash;
+    if (hasPassword) {
+      passwordHash = await hashPassword(validatePassword(rawPassword));
+    } else if (override) {
+      passwordHash = override.passwordHash;
+    } else {
+      passwordHash = await hashPassword(candidate);
+    }
+    applyCredentialsOverride({ username, passwordHash });
+    return { username };
+  }
+
+  function resetAdminCredentials() {
+    database.transaction(() => {
+      clearCredentialsOverride.run();
+      deleteEnvironmentSessions.run();
+    })();
+  }
+
   return {
-    adminConfigured,
+    get adminConfigured() {
+      return adminConfigured || Boolean(credentialsOverride());
+    },
+    adminAccess: () => {
+      const override = credentialsOverride();
+      return { username: override?.username ?? configuredAdminUsername, customized: Boolean(override) };
+    },
+    changeAdminCredentials,
     createSession,
     login,
     logout,
@@ -315,7 +406,11 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
     register,
     requireAccount,
     requireAdmin,
+    resetAdminCredentials,
     serializeAccount,
-    isAdminUsername: (username) => adminConfigured && normalizeUsername(username) === configuredAdminUsername,
+    isAdminUsername: (username) => {
+      const adminName = effectiveAdminUsername();
+      return adminName.length > 0 && normalizeUsername(username) === adminName;
+    },
   };
 }

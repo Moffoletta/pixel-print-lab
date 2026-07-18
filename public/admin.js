@@ -9,6 +9,11 @@ const settingsForm = document.querySelector("#settings-form");
 const emailNotificationsInput = document.querySelector("#email-notifications-enabled");
 const smtpStatus = document.querySelector("#smtp-status");
 const settingsFeedback = document.querySelector("#settings-feedback");
+const credentialsForm = document.querySelector("#credentials-form");
+const credentialsUsername = document.querySelector("#credentials-username");
+const credentialsCurrentPassword = document.querySelector("#credentials-current-password");
+const credentialsNewPassword = document.querySelector("#credentials-new-password");
+const credentialsFeedback = document.querySelector("#credentials-feedback");
 const orderCount = document.querySelector("#order-count");
 const orderListStatus = document.querySelector("#order-list-status");
 const orderList = document.querySelector("#order-list");
@@ -95,6 +100,10 @@ async function loadSettings() {
     ? `SMTP configurato. Destinatario: ${settings.smtpRecipient}`
     : "SMTP non configurato. Aggiungi le variabili richieste prima di attivare l'invio.";
   smtpStatus.dataset.configured = String(settings.smtpConfigured);
+  credentialsForm.reset();
+  credentialsUsername.value = settings.adminUsername;
+  credentialsFeedback.textContent = "";
+  credentialsFeedback.classList.remove("admin-feedback--error");
 }
 
 function renderOrderList() {
@@ -392,6 +401,33 @@ settingsForm.addEventListener("submit", async (event) => {
   } catch (error) {
     settingsFeedback.textContent = error.message;
     settingsFeedback.classList.add("admin-feedback--error");
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+credentialsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = credentialsForm.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  credentialsFeedback.textContent = "";
+  credentialsFeedback.classList.remove("admin-feedback--error");
+  try {
+    await api("/api/admin/credentials", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: credentialsUsername.value,
+        currentPassword: credentialsCurrentPassword.value,
+        password: credentialsNewPassword.value || undefined,
+      }),
+    });
+    showLogin();
+    loginFeedback.textContent = "Credenziali aggiornate. Accedi con le nuove credenziali.";
+    loginFeedback.classList.remove("admin-feedback--error");
+  } catch (error) {
+    credentialsFeedback.textContent = error.message;
+    credentialsFeedback.classList.add("admin-feedback--error");
   } finally {
     submitButton.disabled = false;
   }

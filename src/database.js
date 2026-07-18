@@ -219,6 +219,17 @@ const migrations = [
         ON orders (user_account_id, created_at DESC, id DESC);
     `,
   },
+  {
+    version: 9,
+    name: "add_admin_credentials_override",
+    sql: `
+      ALTER TABLE app_settings
+      ADD COLUMN admin_username TEXT;
+
+      ALTER TABLE app_settings
+      ADD COLUMN admin_password_hash TEXT;
+    `,
+  },
 ];
 
 const products = [

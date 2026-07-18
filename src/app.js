@@ -58,6 +58,7 @@ export function createApp({
     catalogDirectory,
     orderFileDirectory,
     emailService,
+    authService: auth,
   });
 
   return app;
