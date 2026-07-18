@@ -1,6 +1,6 @@
 {
   "name": "pixel-print-lab",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Applicazione personale per raccogliere richieste di stampa 3D.",
   "type": "module",

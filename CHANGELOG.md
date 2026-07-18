@@ -2,6 +2,13 @@
 
 Le modifiche rilevanti del progetto sono raccolte in questo file.
 
+## [0.5.1] - 2026-07-18
+
+### Corretto
+
+- Stesso problema di Bitwarden anche nel dialog checkout (campi nome/cognome): reso non modale con backdrop e chiusura con Esc o click fuori.
+- Scrollabilità dei dialog account e checkout su mobile (`overflow: auto`) per evitare che il form venga tagliato o non si possa inviare.
+
 ## [0.5.0] - 2026-07-18
 
 ### Corretto

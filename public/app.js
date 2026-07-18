@@ -27,6 +27,7 @@ const cartSummaryCount = document.querySelector("#cart-summary-count");
 const cartTotal = document.querySelector("#cart-total");
 const checkoutOpenButton = document.querySelector("#checkout-open");
 const checkoutDialog = document.querySelector("#checkout-dialog");
+const checkoutDialogBackdrop = document.querySelector("#checkout-dialog-backdrop");
 const checkoutFormView = document.querySelector("#checkout-form-view");
 const checkoutCount = document.querySelector("#checkout-count");
 const checkoutCustomCount = document.querySelector("#checkout-custom-count");
@@ -718,7 +719,18 @@ checkoutOpenButton.addEventListener("click", () => {
   orderConfirmation.hidden = true;
   confirmationCode.textContent = "";
   cartDialog.close();
-  checkoutDialog.showModal();
+  checkoutDialogBackdrop.hidden = false;
+  checkoutDialog.show();
+  checkoutForm.elements.firstName.focus();
+});
+checkoutDialog.addEventListener("close", () => {
+  checkoutDialogBackdrop.hidden = true;
+});
+checkoutDialogBackdrop.addEventListener("click", () => checkoutDialog.close());
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !checkoutDialog.open) return;
+  if (document.querySelector("dialog:modal")) return;
+  checkoutDialog.close();
 });
 
 checkoutForm.addEventListener("submit", async (event) => {

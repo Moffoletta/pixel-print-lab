@@ -1394,13 +1394,25 @@ h1 em {
 }
 
 .checkout-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
   width: min(calc(100% - 2rem), 44rem);
   max-height: min(92vh, 52rem);
+  margin: auto;
   padding: 0;
+  overflow: auto;
   color: var(--ink);
   background: var(--paper);
   border: var(--line);
   box-shadow: 12px 12px 0 var(--green);
+}
+
+.checkout-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(23, 32, 26, 0.84);
 }
 
 .checkout-dialog::backdrop {
@@ -1551,6 +1563,7 @@ h1 em {
   max-height: min(92vh, 58rem);
   margin: auto;
   padding: 0;
+  overflow: auto;
   color: var(--ink);
   background: var(--paper);
   border: var(--line);
