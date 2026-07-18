@@ -2,6 +2,17 @@
 
 Le modifiche rilevanti del progetto sono raccolte in questo file.
 
+## [0.4.0] - 2026-07-18
+
+### Aggiunto
+
+- Cambio del nome utente e della password amministrativi dal popup impostazioni della Control Room, con verifica della password attuale.
+- Comando `admin:reset` per ripristinare le credenziali definite dalle variabili d'ambiente.
+
+### Modificato
+
+- Le credenziali personalizzate salvate nel database hanno la precedenza su quelle d'ambiente; ogni cambio invalida le sessioni amministrative attive.
+
 ## [0.3.0] - 2026-07-17
 
 ### Aggiunto
@@ -38,6 +49,7 @@ Le modifiche rilevanti del progetto sono raccolte in questo file.
 - Distribuzione self-hosted con Docker Compose e volumi persistenti.
 - Test automatici e build Docker tramite GitHub Actions.
 
+[0.4.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Moffoletta/pixel-print-lab/releases/tag/v0.1.0
