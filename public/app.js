@@ -520,10 +520,13 @@ async function loadPublicOrders() {
     const hadPreviousData = publicOrdersSignature !== "";
     publicOrdersSignature = signature;
     requestList.replaceChildren();
-    orders.forEach((order) => {
+    orders.forEach((order, index) => {
       const item = requestTemplate.content.firstElementChild.cloneNode(true);
       item.querySelector('[data-field="request-code"]').textContent = order.code;
-      item.querySelector('[data-field="request-status"]').textContent = publicStatusLabels[order.status] ?? order.status;
+      const statusEl = item.querySelector('[data-field="request-status"]');
+      statusEl.textContent = publicStatusLabels[order.status] ?? order.status;
+      statusEl.dataset.status = order.status;
+      item.querySelector('[data-field="request-order"]').textContent = String(index + 1).padStart(2, "0");
       item.querySelector('[data-field="request-animation"]').hidden = order.status !== "in_lavorazione";
       requestList.append(item);
     });

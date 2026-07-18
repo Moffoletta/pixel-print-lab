@@ -112,9 +112,10 @@ function renderOrderList() {
   orderListStatus.hidden = orders.length > 0;
   orderListStatus.textContent = orders.length ? "" : "Nessuna richiesta presente.";
   const fragment = document.createDocumentFragment();
-  orders.forEach((order) => {
+  orders.forEach((order, index) => {
     const button = orderListTemplate.content.firstElementChild.cloneNode(true);
     button.dataset.orderId = order.id;
+    button.querySelector('[data-field="list-order"]').textContent = String(index + 1).padStart(2, "0");
     button.querySelector('[data-field="list-code"]').textContent = order.code;
     button.querySelector('[data-field="list-name"]').textContent = `${order.firstName} ${order.lastName}`;
     button.querySelector('[data-field="list-status"]').textContent = orderStatusLabels[order.status] ?? order.status;
@@ -132,7 +133,7 @@ async function loadOrders() {
   orderListStatus.hidden = false;
   orderListStatus.textContent = "Caricamento richieste...";
   const result = await api("/api/admin/orders");
-  orders = result;
+  orders = [...result].reverse();
   renderOrderList();
   if (currentOrder && orders.some((order) => order.id === currentOrder.id)) {
     await loadOrder(currentOrder.id);

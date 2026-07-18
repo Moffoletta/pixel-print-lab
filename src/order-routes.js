@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { constants as fileConstants, mkdirSync } from "node:fs";
 import { copyFile, stat, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -65,17 +64,16 @@ export function validateQuantity(value) {
   return value;
 }
 
-function createOrderCode(database) {
-  const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  const codeExists = database.prepare("SELECT 1 FROM orders WHERE code = ?");
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const suffix = crypto.randomBytes(3).toString("hex").toUpperCase();
-    const code = `PPL-${date}-${suffix}`;
-    if (!codeExists.get(code)) {
-      return code;
-    }
-  }
-  throw new Error("Impossibile generare un codice richiesta univoco.");
+function createOrderCode(database, firstName, lastName) {
+  const initialFirst = (firstName?.trim()?.[0] ?? "X").toUpperCase();
+  const initialLast = (lastName?.trim()?.[0] ?? "X").toUpperCase();
+  const initials = `${initialFirst}${initialLast}`;
+  const maxSequence =
+    database
+      .prepare("SELECT MAX(CAST(SUBSTR(code, 4) AS INTEGER)) AS max FROM orders WHERE code LIKE '__-____'")
+      .get()?.max ?? 0;
+  const sequence = maxSequence + 1;
+  return `${initials}-${String(sequence).padStart(4, "0")}`;
 }
 
 function formatEuro(cents) {
@@ -138,7 +136,7 @@ export function registerOrderRoutes(
   const listPublicOrders = database.prepare(`
     SELECT code, status
     FROM orders
-    ORDER BY created_at DESC, id DESC
+    ORDER BY created_at ASC, id ASC
   `);
   const getSettings = database.prepare(`
     SELECT email_notifications_enabled FROM app_settings WHERE id = 1
@@ -326,7 +324,7 @@ export function registerOrderRoutes(
         throw new OrderError("INVALID_ITEM_TYPE", "La sorgente del modello personale non e valida.");
       }
 
-      const code = createOrderCode(database);
+      const code = createOrderCode(database, firstName, lastName);
       const copiedByUpload = new Map();
       for (const item of validatedItems.filter(({ itemType }) => itemType === "custom_file")) {
         let permanentFilename = copiedByUpload.get(item.uploadId);

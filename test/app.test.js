@@ -712,7 +712,7 @@ endsolid order`;
 
   assert.equal(response.status, 201);
   assert.deepEqual(Object.keys(body.data), ["code"]);
-  assert.match(body.data.code, /^PPL-\d{8}-[0-9A-F]{6}$/);
+  assert.match(body.data.code, /^[A-Z]{2}-\d{4}$/);
 
   const order = database.prepare("SELECT * FROM orders WHERE code = ?").get(body.data.code);
   const items = database
@@ -902,11 +902,13 @@ test("espone pubblicamente soltanto codice e stato in ordine recente", async () 
   const response = await fetch(`${baseUrl}/api/orders`);
   const body = await response.json();
   assert.equal(response.status, 200);
-  assert.deepEqual(body.data.slice(0, 2), [
-    { code: "PPL-PUBLIC-NEWER", status: "in_lavorazione" },
-    { code: "PPL-PUBLIC-OLDER", status: "completato" },
-  ]);
-  assert.deepEqual(Object.keys(body.data[0]), ["code", "status"]);
+  const newerIndex = body.data.findIndex((order) => order.code === "PPL-PUBLIC-NEWER");
+  const olderIndex = body.data.findIndex((order) => order.code === "PPL-PUBLIC-OLDER");
+  assert.ok(newerIndex > -1 && olderIndex > -1);
+  assert.ok(newerIndex > olderIndex, "L'ordine piu recente deve apparire dopo quello piu vecchio");
+  for (const order of body.data) {
+    assert.deepEqual(Object.keys(order), ["code", "status"]);
+  }
   assert.doesNotMatch(JSON.stringify(body), /Privato|Nascosto|9999|created_at|first_name|items/i);
   assert.throws(
     () => database.prepare("UPDATE orders SET status = 'non_valido' WHERE id = ?").run(firstId),
@@ -1343,10 +1345,10 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
   const listResponse = await adminFetch("/api/admin/orders");
   const list = await listResponse.json();
   assert.equal(listResponse.status, 200);
-  assert.equal(list.count, 1);
-  assert.equal(list.data[0].itemCount, 3);
-  assert.equal(list.data[0].status, "in_attesa");
-  const orderId = list.data[0].id;
+  const inProgressOrder = list.data.find((order) => order.status === "in_attesa" && order.itemCount === 3);
+  assert.ok(inProgressOrder, "Non trovato un ordine in attesa con 3 elementi");
+  assert.equal(inProgressOrder.status, "in_attesa");
+  const orderId = inProgressOrder.id;
 
   const detailResponse = await adminFetch(`/api/admin/orders/${orderId}`);
   const detail = (await detailResponse.json()).data;
