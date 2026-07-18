@@ -2,6 +2,14 @@
 
 Le modifiche rilevanti del progetto sono raccolte in questo file.
 
+## [0.4.1] - 2026-07-18
+
+### Aggiunto
+
+- Cambio password dell'utente autenticato dal popup profilo, con API `PUT /api/account/password`.
+- Animazione della stampante 3D nella hero: estrusore e filamento si muovono strato dopo strato mentre l'oggetto cresce dal basso verso l'alto.
+- Barra "Livello X / Y" e screen con il codice dell'ordine in lavorazione collegati agli ordini reali.
+
 ## [0.4.0] - 2026-07-18
 
 ### Aggiunto
@@ -50,6 +58,7 @@ Le modifiche rilevanti del progetto sono raccolte in questo file.
 - Test automatici e build Docker tramite GitHub Actions.
 
 [0.4.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.3.0...v0.4.0
+[0.4.1]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.4.0...v0.4.1
 [0.3.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Moffoletta/pixel-print-lab/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Moffoletta/pixel-print-lab/releases/tag/v0.1.0
