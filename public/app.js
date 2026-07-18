@@ -48,10 +48,19 @@ const accountDisplayName = document.querySelector("#account-display-name");
 const accountUsername = document.querySelector("#account-username");
 const accountAdminLink = document.querySelector("#account-admin-link");
 const accountLogoutButton = document.querySelector("#account-logout");
+const accountSettingsButton = document.querySelector("#account-settings");
+const accountSettingsPanel = document.querySelector("#account-settings-panel");
+const accountPasswordForm = document.querySelector("#account-password-form");
+const accountCurrentPassword = document.querySelector("#account-current-password");
+const accountNewPassword = document.querySelector("#account-new-password");
+const accountPasswordFeedback = document.querySelector("#account-password-feedback");
 const accountOrdersRefresh = document.querySelector("#account-orders-refresh");
 const accountOrdersStatus = document.querySelector("#account-orders-status");
 const accountOrderList = document.querySelector("#account-order-list");
 const accountOrderTemplate = document.querySelector("#account-order-template");
+const printSceneScreen = document.querySelector("#print-scene-screen");
+const printSceneProgressText = document.querySelector("#print-scene-progress-text");
+const printSceneProgressBar = document.querySelector("#print-scene-progress-bar");
 const customForm = document.querySelector("#custom-model-form");
 const customSourceInputs = document.querySelectorAll('input[name="custom-source"]');
 const customFilePanel = document.querySelector("#custom-file-panel");
@@ -488,6 +497,15 @@ async function submitAccountForm(form, endpoint) {
   }
 }
 
+function updatePrintScene(orders) {
+  const completed = orders.filter((order) => order.status === "completato").length;
+  const pending = orders.length - completed;
+  printSceneProgressText.textContent = orders.length ? `Livello ${completed} / ${pending}` : "Livello 0 / 0";
+  printSceneProgressBar.style.width = orders.length ? `${(completed / orders.length) * 100}%` : "0%";
+  const printingOrder = orders.find((order) => order.status === "in_lavorazione");
+  printSceneScreen.textContent = printingOrder ? printingOrder.code : "STANDBY";
+}
+
 async function loadPublicOrders() {
   const loadVersion = ++trackingLoadVersion;
   try {
@@ -509,6 +527,7 @@ async function loadPublicOrders() {
       item.querySelector('[data-field="request-animation"]').hidden = order.status !== "in_lavorazione";
       requestList.append(item);
     });
+    updatePrintScene(orders);
     trackingAnnouncement.textContent = hadPreviousData ? "Lo stato delle richieste e stato aggiornato." : "Elenco richieste caricato.";
   } catch (error) {
     if (loadVersion !== trackingLoadVersion) return;
@@ -819,6 +838,49 @@ accountLogoutButton.addEventListener("click", async () => {
     if (version === accountStateVersion) accountLogoutButton.disabled = false;
   }
 });
+
+accountSettingsButton.addEventListener("click", () => {
+  accountSettingsPanel.hidden = !accountSettingsPanel.hidden;
+  if (!accountSettingsPanel.hidden) {
+    accountPasswordForm.reset();
+    accountPasswordFeedback.textContent = "";
+    accountPasswordFeedback.classList.remove("account-feedback--error");
+    accountCurrentPassword.focus();
+  }
+});
+
+accountPasswordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = accountPasswordForm.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  accountPasswordFeedback.textContent = "";
+  accountPasswordFeedback.classList.remove("account-feedback--error");
+  const version = ++accountStateVersion;
+  try {
+    await parseApiResponse(
+      await fetch("/api/account/password", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: accountCurrentPassword.value,
+          newPassword: accountNewPassword.value,
+        }),
+      }),
+    );
+    if (version !== accountStateVersion) return;
+    accountPasswordForm.reset();
+    accountPasswordFeedback.textContent = "Password aggiornata.";
+    accountSettingsPanel.hidden = true;
+  } catch (error) {
+    if (version === accountStateVersion) {
+      accountPasswordFeedback.textContent = error.message;
+      accountPasswordFeedback.classList.add("account-feedback--error");
+    }
+  } finally {
+    if (version === accountStateVersion) submitButton.disabled = false;
+  }
+});
+
 accountOrdersRefresh.addEventListener("click", loadAccountOrders);
 updateCustomSource();
 loadAccountSession();

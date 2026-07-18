@@ -49,14 +49,14 @@
         </div>
 
         <div class="print-scene" aria-label="Illustrazione pixel art di una stampante 3D in funzione" role="img">
-          <div class="print-scene__screen">PRINT_01</div>
+          <div class="print-scene__screen" id="print-scene-screen">PRINT_01</div>
           <div class="print-scene__rail"></div>
           <div class="print-scene__head"></div>
           <div class="print-scene__filament"></div>
           <div class="print-scene__object"></div>
           <div class="print-scene__bed"></div>
-          <div class="print-scene__progress"><span></span></div>
-          <p>Livello 024 / 180</p>
+          <div class="print-scene__progress"><span id="print-scene-progress-bar"></span></div>
+          <p id="print-scene-progress-text">Livello 0 / 0</p>
         </div>
       </section>
 
@@ -355,9 +355,21 @@
             </div>
             <div class="account-profile__actions">
               <a class="account-admin-link" id="account-admin-link" href="/admin.html" hidden>Control Room</a>
+              <button id="account-settings" class="account-settings-button" type="button" aria-label="Impostazioni" title="Impostazioni">&#9881;</button>
               <button id="account-logout" type="button">Esci</button>
             </div>
           </div>
+          <section class="account-settings" id="account-settings-panel" hidden aria-labelledby="account-settings-title">
+            <p class="section-number">Sicurezza</p>
+            <h3 id="account-settings-title">Cambia password</h3>
+            <form class="account-form" id="account-password-form">
+              <label><span>Password attuale</span><input id="account-current-password" name="currentPassword" type="password" autocomplete="current-password" required></label>
+              <label><span>Nuova password</span><input id="account-new-password" name="newPassword" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label>
+              <p class="account-settings-hint">Almeno 10 caratteri. Dopo il salvataggio dovrai usare la nuova password per accedere.</p>
+              <p class="account-feedback" id="account-password-feedback" role="status"></p>
+              <button type="submit">Aggiorna password</button>
+            </form>
+          </section>
           <section class="account-orders" aria-labelledby="account-orders-title">
             <div class="account-orders__heading">
               <h3 id="account-orders-title">I tuoi ordini</h3>

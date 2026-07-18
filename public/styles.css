@@ -321,36 +321,39 @@ h1 em {
 .print-scene__head {
   position: absolute;
   z-index: 3;
-  top: 7.6rem;
-  left: 40%;
+  top: 16.5rem;
+  left: calc(50% - 1.5rem);
   width: 3rem;
   height: 2.5rem;
   background: var(--blue);
   border: 0.45rem solid var(--ink);
-  animation: print-head 3.6s steps(5, jump-none) infinite alternate;
+  animation: print-head 7s steps(5, jump-none) infinite;
 }
 
 .print-scene__filament {
   position: absolute;
   z-index: 2;
-  top: 10rem;
-  left: calc(40% + 1.25rem);
+  top: 19rem;
+  left: calc(50% - 0.25rem);
   width: 0.5rem;
-  height: 5rem;
+  height: 2.5rem;
   background: var(--orange);
-  animation: print-head 3.6s steps(5, jump-none) infinite alternate;
+  animation: print-head 7s steps(5, jump-none) infinite;
 }
 
 .print-scene__object {
   position: absolute;
   z-index: 2;
-  right: 27%;
+  left: 50%;
   bottom: 4.25rem;
   width: 38%;
   height: 22%;
   background: var(--orange);
   clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
   box-shadow: inset 0 -0.5rem rgba(23, 32, 26, 0.22);
+  transform-origin: bottom;
+  transform: translateX(-50%) scaleY(0);
+  animation: print-object 7s steps(5, jump-none) infinite;
 }
 
 .print-scene__bed {
@@ -375,9 +378,10 @@ h1 em {
 
 .print-scene__progress span {
   display: block;
-  width: 62%;
+  width: 0%;
   height: 100%;
   background: var(--green);
+  transition: width 0.4s ease-out;
 }
 
 .print-scene > p {
@@ -1665,6 +1669,35 @@ h1 em {
   border: 2px solid var(--paper);
 }
 
+.account-profile__actions .account-settings-button {
+  width: 2.8rem;
+  padding: 0;
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid var(--paper);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.account-settings {
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--blue);
+}
+
+.account-settings h3 {
+  margin-top: 0;
+}
+
+.account-settings-hint {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .account-admin-link {
   display: inline-flex;
   align-items: center;
@@ -1832,10 +1865,22 @@ h1 em {
 }
 
 @keyframes print-head {
-  to { transform: translateX(4rem); }
+  0% { transform: translate(-2rem, 0); }
+  20% { transform: translate(2rem, -1rem); }
+  40% { transform: translate(-2rem, -2rem); }
+  60% { transform: translate(2rem, -3rem); }
+  80% { transform: translate(-2rem, -4rem); }
+  100% { transform: translate(2rem, -5rem); }
 }
 
-@keyframes viewer-layer {
+@keyframes print-object {
+  0% { transform: translateX(-50%) scaleY(0); }
+  20% { transform: translateX(-50%) scaleY(0.2); }
+  40% { transform: translateX(-50%) scaleY(0.4); }
+  60% { transform: translateX(-50%) scaleY(0.6); }
+  80% { transform: translateX(-50%) scaleY(0.8); }
+  100% { transform: translateX(-50%) scaleY(1); }
+}
   from { transform: scaleY(0.35); }
   to { transform: scaleY(1); }
 }
@@ -1902,6 +1947,15 @@ h1 em {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+
+  .print-scene__head,
+  .print-scene__object {
+    animation: none !important;
+  }
+
+  .print-scene__object {
+    transform: scaleY(1) !important;
   }
 }
 
@@ -2125,5 +2179,10 @@ h1 em {
 }
 
 @keyframes print-head-mobile {
-  to { transform: translateX(2rem); }
+  0% { transform: translate(-1.5rem, 0); }
+  20% { transform: translate(1.5rem, -1rem); }
+  40% { transform: translate(-1.5rem, -2rem); }
+  60% { transform: translate(1.5rem, -3rem); }
+  80% { transform: translate(-1.5rem, -4rem); }
+  100% { transform: translate(1.5rem, -5rem); }
 }

@@ -1239,6 +1239,69 @@ test("gestisce account, storico personale e accesso amministrativo unificato", a
   database.prepare("DELETE FROM user_accounts WHERE id = ?").run(secondAccount.data.id);
 });
 
+test("gestisce il cambio password dell'utente autenticato", async () => {
+  assert.equal((await fetch(`${baseUrl}/api/account/password`, { method: "PUT" })).status, 401);
+
+  const registration = await fetch(`${baseUrl}/api/account/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      username: "utente.password",
+      password: "password-iniziale",
+      firstName: "Utente",
+      lastName: "Password",
+    }),
+  });
+  assert.equal(registration.status, 201);
+  const accountCookie = registration.headers.get("set-cookie").split(";", 1)[0];
+  const accountId = (await registration.json()).data.id;
+  const accountFetch = (pathName, options = {}) =>
+    fetch(`${baseUrl}${pathName}`, {
+      ...options,
+      headers: { cookie: accountCookie, ...(options.headers ?? {}) },
+    });
+  const changePassword = (body) => fetch(`${baseUrl}/api/account/password`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: accountCookie },
+    body: JSON.stringify(body),
+  });
+
+  const wrongPassword = await changePassword({ currentPassword: "password-sbagliata", newPassword: "nuova-password-sicura" });
+  assert.equal(wrongPassword.status, 401);
+  assert.equal((await wrongPassword.json()).error.code, "INVALID_CREDENTIALS");
+
+  const shortPassword = await changePassword({ currentPassword: "password-iniziale", newPassword: "corta" });
+  assert.equal(shortPassword.status, 400);
+  assert.equal((await shortPassword.json()).error.code, "INVALID_PASSWORD");
+
+  const missingPassword = await changePassword({ currentPassword: "password-iniziale" });
+  assert.equal(missingPassword.status, 400);
+
+  const changed = await changePassword({ currentPassword: "password-iniziale", newPassword: "nuova-password-sicura" });
+  assert.equal(changed.status, 200);
+  const storedHash = database.prepare("SELECT password_hash FROM user_accounts WHERE id = ?").get(accountId).password_hash;
+  assert.equal(storedHash.includes("nuova-password-sicura"), false);
+  assert.equal(storedHash.includes("password-iniziale"), false);
+
+  assert.equal((await changePassword({ currentPassword: "password-iniziale", newPassword: "altro" })).status, 401);
+
+  const oldLogin = await fetch(`${baseUrl}/api/account/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "utente.password", password: "password-iniziale" }),
+  });
+  assert.equal(oldLogin.status, 401);
+
+  const newLogin = await fetch(`${baseUrl}/api/account/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "utente.password", password: "nuova-password-sicura" }),
+  });
+  assert.equal(newLogin.status, 201);
+
+  database.prepare("DELETE FROM user_accounts WHERE id = ?").run(accountId);
+});
+
 test("protegge le API amministrative e gestisce il ciclo completo di un ordine", async () => {
   const unauthorized = await fetch(`${baseUrl}/api/admin/orders`);
   assert.equal(unauthorized.status, 401);

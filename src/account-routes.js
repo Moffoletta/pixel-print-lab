@@ -135,6 +135,20 @@ export function registerAccountRoutes(app, { database, auth }) {
     response.json({ data: orders, count: orders.length });
   });
 
+  app.put("/api/account/password", auth.requireAccount, async (request, response) => {
+    try {
+      const result = await auth.changePassword({
+        account: request.userAccount,
+        currentPassword: request.body?.currentPassword,
+        newPassword: request.body?.newPassword,
+        currentSessionToken: request.userSessionToken,
+      });
+      return response.json({ data: result });
+    } catch (error) {
+      return sendAuthError(response, error);
+    }
+  });
+
   app.post("/api/admin/login", (request, response) => handleLogin(request, response, true));
 
   app.post("/api/admin/logout", auth.requireAdmin, (request, response) => {

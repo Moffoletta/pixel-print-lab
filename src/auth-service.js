@@ -165,6 +165,15 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
       SELECT id FROM user_accounts WHERE auth_source = 'environment'
     )
   `);
+  const updatePasswordHash = database.prepare(`
+    UPDATE user_accounts
+    SET password_hash = @passwordHash, updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+  const deleteOtherSessions = database.prepare(`
+    DELETE FROM user_sessions
+    WHERE user_account_id = @id AND token_hash != @tokenHash
+  `);
 
   database.exec(`
     DELETE FROM user_sessions
@@ -390,6 +399,22 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
     })();
   }
 
+  async function changePassword({ account, currentPassword, newPassword, currentSessionToken }) {
+    if (account.auth_source !== "local") {
+      throw new AuthError("LOCAL_ACCOUNT_REQUIRED", "Operazione non disponibile per questo account.", 403);
+    }
+    const candidate = typeof currentPassword === "string" ? currentPassword : "";
+    if (!await verifyPassword(candidate, account.password_hash)) {
+      throw new AuthError("INVALID_CREDENTIALS", "La password attuale non e corretta.", 401);
+    }
+    const passwordHash = await hashPassword(validatePassword(newPassword));
+    updatePasswordHash.run({ id: account.id, passwordHash });
+    if (currentSessionToken) {
+      deleteOtherSessions.run({ id: account.id, tokenHash: tokenHash(currentSessionToken) });
+    }
+    return { updated: true };
+  }
+
   return {
     get adminConfigured() {
       return adminConfigured || Boolean(credentialsOverride());
@@ -399,6 +424,7 @@ export function createAuthService({ database, adminUsername, adminPassword }) {
       return { username: override?.username ?? configuredAdminUsername, customized: Boolean(override) };
     },
     changeAdminCredentials,
+    changePassword,
     createSession,
     login,
     logout,

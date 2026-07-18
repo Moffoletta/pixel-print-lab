@@ -179,7 +179,7 @@ docker compose -f compose.cloudflare.yml logs -f cloudflared app
 - `DELETE /api/custom-models/:id`: eliminazione di un upload temporaneo.
 - `POST /api/orders`: creazione di una richiesta persistente.
 - `GET /api/orders`: elenco pubblico limitato a codice richiesta e stato.
-- `/api/account/*`: registrazione, login, logout, sessione e storico personale.
+- `/api/account/*`: registrazione, login, logout, sessione, storico personale e cambio password.
 - `/api/admin/*`: autenticazione e gestione protetta di richieste, prodotti, asset, colori, impostazioni e credenziali amministrative.
 
 ## Documentazione
