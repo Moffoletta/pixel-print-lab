@@ -39,6 +39,7 @@ const confirmationCode = document.querySelector("#confirmation-code");
 const checkoutCustomerNote = document.querySelector("#checkout-customer-note");
 const accountOpenButton = document.querySelector("#account-open");
 const accountDialog = document.querySelector("#account-dialog");
+const accountDialogBackdrop = document.querySelector("#account-dialog-backdrop");
 const accountGuestView = document.querySelector("#account-guest-view");
 const accountUserView = document.querySelector("#account-user-view");
 const accountLoginForm = document.querySelector("#account-login-form");
@@ -814,8 +815,19 @@ async function loadCatalog() {
 cartOpenButton.addEventListener("click", () => cartDialog.showModal());
 accountOpenButton.addEventListener("click", () => {
   accountGuestFeedback.textContent = "";
-  accountDialog.showModal();
+  accountDialogBackdrop.hidden = false;
+  accountDialog.show();
+  if (!accountGuestView.hidden) document.querySelector("#login-username").focus();
   if (currentAccount) loadAccountOrders();
+});
+accountDialog.addEventListener("close", () => {
+  accountDialogBackdrop.hidden = true;
+});
+accountDialogBackdrop.addEventListener("click", () => accountDialog.close());
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !accountDialog.open) return;
+  if (document.querySelector("dialog:modal")) return;
+  accountDialog.close();
 });
 accountLoginForm.addEventListener("submit", (event) => {
   event.preventDefault();

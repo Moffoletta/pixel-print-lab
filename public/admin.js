@@ -5,6 +5,7 @@ const dashboardView = document.querySelector("#dashboard-view");
 const logoutButton = document.querySelector("#logout-button");
 const settingsButton = document.querySelector("#settings-button");
 const settingsDialog = document.querySelector("#settings-dialog");
+const settingsDialogBackdrop = document.querySelector("#settings-dialog-backdrop");
 const settingsForm = document.querySelector("#settings-form");
 const emailNotificationsInput = document.querySelector("#email-notifications-enabled");
 const smtpStatus = document.querySelector("#smtp-status");
@@ -375,13 +376,22 @@ logoutButton.addEventListener("click", async () => {
 });
 
 settingsButton.addEventListener("click", async () => {
-  settingsDialog.showModal();
+  settingsDialogBackdrop.hidden = false;
+  settingsDialog.show();
   try {
     await loadSettings();
   } catch (error) {
     settingsFeedback.textContent = error.message;
     settingsFeedback.classList.add("admin-feedback--error");
   }
+});
+
+settingsDialog.addEventListener("close", () => {
+  settingsDialogBackdrop.hidden = true;
+});
+settingsDialogBackdrop.addEventListener("click", () => settingsDialog.close());
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && settingsDialog.open) settingsDialog.close();
 });
 
 settingsForm.addEventListener("submit", async (event) => {

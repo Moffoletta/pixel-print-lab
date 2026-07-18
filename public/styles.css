@@ -1544,13 +1544,24 @@ h1 em {
 }
 
 .account-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
   width: min(calc(100% - 2rem), 56rem);
   max-height: min(92vh, 58rem);
+  margin: auto;
   padding: 0;
   color: var(--ink);
   background: var(--paper);
   border: var(--line);
   box-shadow: 12px 12px 0 var(--blue);
+}
+
+.account-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(23, 32, 26, 0.84);
 }
 
 .account-dialog::backdrop {

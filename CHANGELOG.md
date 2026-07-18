@@ -2,6 +2,12 @@
 
 Le modifiche rilevanti del progetto sono raccolte in questo file.
 
+## [0.5.0] - 2026-07-18
+
+### Corretto
+
+- Conflitto tra il menu inline di Bitwarden e i dialog modali nativi: i popup account e impostazioni admin si aprono ora come dialog non modali, così il menu di Bitwarden può sovrapporsi ai campi di login e password.
+
 ## [0.4.1] - 2026-07-18
 
 ### Aggiunto

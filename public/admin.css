@@ -229,13 +229,24 @@
 }
 
 .settings-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
   width: min(calc(100% - 2rem), 36rem);
   max-height: calc(100vh - 2rem);
+  margin: auto;
   padding: 0;
   color: var(--ink);
   background: transparent;
   border: 0;
   overflow: auto;
+}
+
+.settings-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(23 32 26 / 72%);
 }
 
 .settings-dialog::backdrop {
