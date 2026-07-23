@@ -820,6 +820,55 @@ test("gestisce l'invio SMTP opzionale dalle impostazioni amministrative", async 
   database.prepare("DELETE FROM orders WHERE code IN (?, ?)").run(sentCode, failedCode);
 });
 
+test("rispetta il limite di 15 ordini in lavorazione", async () => {
+  const maxOpenOrders = 15;
+  const existingOpenOrders = database.prepare("SELECT COUNT(*) AS count FROM orders WHERE status != 'completato'").get().count;
+  const ordersToInsert = Math.max(0, maxOpenOrders - existingOpenOrders);
+
+  const insertOrder = database.prepare(`
+    INSERT INTO orders (code, first_name, last_name, catalog_total_cents, status)
+    VALUES (@code, 'Limite', 'Test', 0, 'in_attesa')
+  `);
+  for (let i = 0; i < ordersToInsert; i += 1) {
+    insertOrder.run({ code: `CAP-${String(i).padStart(3, "0")}` });
+  }
+
+  try {
+    const fullResponse = await fetch(`${baseUrl}/api/orders`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        firstName: "Pieno",
+        lastName: "Test",
+        items: [{ type: "catalog", productId: 2, colorId: 4, quantity: 1 }],
+      }),
+    });
+    assert.equal(fullResponse.status, 503);
+    const fullBody = await fullResponse.json();
+    assert.equal(fullBody.error.code, "ORDER_CAPACITY_REACHED");
+
+    if (ordersToInsert > 0) {
+      database.prepare("UPDATE orders SET status = 'completato' WHERE code = 'CAP-000'").run();
+
+      const retryResponse = await fetch(`${baseUrl}/api/orders`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Libero",
+          lastName: "Test",
+          items: [{ type: "catalog", productId: 2, colorId: 4, quantity: 1 }],
+        }),
+      });
+      assert.equal(retryResponse.status, 201);
+      const retryCode = (await retryResponse.json()).data.code;
+      database.prepare("DELETE FROM orders WHERE code = ?").run(retryCode);
+    }
+  } finally {
+    database.prepare("DELETE FROM orders WHERE code LIKE 'CAP-%'").run();
+  }
+});
+
+
 test("gestisce il cambio delle credenziali amministrative", async () => {
   assert.equal((await fetch(`${baseUrl}/api/admin/credentials`, { method: "PUT" })).status, 401);
   const cookie = await authenticateAdmin();
