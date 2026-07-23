@@ -13,6 +13,7 @@ import {
   ModelFileError,
   modelContentType,
 } from "./model-files.js";
+import { RateLimiter, rateLimitMiddleware } from "./rate-limiter.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultUploadDirectory = path.join(currentDirectory, "..", "storage", "uploads");
@@ -105,11 +106,17 @@ export async function cleanupExpiredUploads(uploadDirectory, now = Date.now()) {
   );
 }
 
-export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDirectory) {
+export function registerCustomModelRoutes(
+  app,
+  { uploadDirectory = defaultUploadDirectory, uploadRateLimit = { windowMs: 15 * 60 * 1000, max: 20 } } = {},
+) {
   mkdirSync(uploadDirectory, { recursive: true });
   cleanupExpiredUploads(uploadDirectory).catch((error) => {
     console.error("Pulizia degli upload temporanei non riuscita.", error);
   });
+
+  const uploadRateLimiter = new RateLimiter(uploadRateLimit);
+  const uploadRateLimitMiddleware = rateLimitMiddleware(uploadRateLimiter);
 
   const storage = multer.diskStorage({
     destination: uploadDirectory,
@@ -147,7 +154,7 @@ export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDi
     }),
   );
 
-  app.post("/api/custom-models/upload", (request, response) => {
+  app.post("/api/custom-models/upload", uploadRateLimitMiddleware, (request, response) => {
     upload.single("model")(request, response, async (uploadError) => {
       if (uploadError) {
         return sendError(response, uploadError);
@@ -181,7 +188,7 @@ export function registerCustomModelRoutes(app, uploadDirectory = defaultUploadDi
     });
   });
 
-  app.post("/api/custom-models/link", (request, response) => {
+  app.post("/api/custom-models/link", uploadRateLimitMiddleware, (request, response) => {
     try {
       const link = validateExternalModelUrl(request.body?.url);
       return response.status(201).json({

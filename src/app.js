@@ -13,6 +13,9 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
 const threeDirectory = path.join(currentDirectory, "..", "node_modules", "three");
 
+const DEFAULT_UPLOAD_RATE_LIMIT = { windowMs: 15 * 60 * 1000, max: 20 };
+const DEFAULT_ORDER_RATE_LIMIT = { windowMs: 60 * 60 * 1000, max: 20 };
+
 export function createApp({
   database,
   uploadDirectory,
@@ -22,6 +25,8 @@ export function createApp({
   adminPassword,
   trustProxy = false,
   emailService,
+  uploadRateLimit = DEFAULT_UPLOAD_RATE_LIMIT,
+  orderRateLimit = DEFAULT_ORDER_RATE_LIMIT,
 } = {}) {
   if (!database) {
     throw new TypeError("createApp richiede una connessione al database");
@@ -37,7 +42,7 @@ export function createApp({
   app.use("/vendor/three/build", express.static(path.join(threeDirectory, "build")));
   app.use("/vendor/three/examples/jsm", express.static(path.join(threeDirectory, "examples", "jsm")));
   app.use(express.static(publicDirectory));
-  registerCustomModelRoutes(app, uploadDirectory);
+  registerCustomModelRoutes(app, { uploadDirectory, uploadRateLimit });
 
   app.get("/api/health", (_request, response) => {
     response.json({ status: "ok" });
@@ -51,6 +56,7 @@ export function createApp({
     orderFileDirectory,
     emailService,
     optionalAccount: auth.optionalAccount,
+    orderRateLimit,
   });
   registerAdminRoutes(app, {
     database,

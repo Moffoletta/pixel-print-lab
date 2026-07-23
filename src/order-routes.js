@@ -15,6 +15,8 @@ import {
   sanitizeOriginalModelName,
 } from "./model-files.js";
 
+import { RateLimiter, rateLimitMiddleware } from "./rate-limiter.js";
+
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultOrderFileDirectory = path.join(currentDirectory, "..", "storage", "orders");
 
@@ -119,9 +121,13 @@ export function registerOrderRoutes(
     orderFileDirectory = defaultOrderFileDirectory,
     emailService,
     optionalAccount = (_request, _response, next) => next(),
-  },
+    orderRateLimit = { windowMs: 60 * 60 * 1000, max: 20 },
+  } = {},
 ) {
   mkdirSync(orderFileDirectory, { recursive: true });
+
+  const orderRateLimiter = new RateLimiter(orderRateLimit);
+  const orderRateLimitMiddleware = rateLimitMiddleware(orderRateLimiter);
 
   const findProduct = database.prepare(`
     SELECT id, code, name, price_cents
@@ -170,7 +176,7 @@ export function registerOrderRoutes(
     response.json({ data: listPublicOrders.all() });
   });
 
-  app.post("/api/orders", optionalAccount, async (request, response) => {
+  app.post("/api/orders", optionalAccount, orderRateLimitMiddleware, async (request, response) => {
     const copiedFiles = [];
     try {
       const firstName = validatePersonName(request.body?.firstName, "Il nome");

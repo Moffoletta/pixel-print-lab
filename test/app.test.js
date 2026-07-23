@@ -49,6 +49,8 @@ before(async () => {
     adminUsername: "test-admin",
     adminPassword: "test-admin-password",
     emailService,
+    uploadRateLimit: false,
+    orderRateLimit: false,
   }).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const address = server.address();
