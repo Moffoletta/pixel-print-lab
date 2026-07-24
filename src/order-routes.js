@@ -129,7 +129,7 @@ export function registerOrderRoutes(
 
   const orderRateLimiter = new RateLimiter(orderRateLimit);
   const orderRateLimitMiddleware = rateLimitMiddleware(orderRateLimiter, {
-    message: "Hai creato troppi ordini velocemente. Aspetta che scada il timer per crearne altri.",
+    message: "Ti stai divertendo a caricare tutti questi ordini vero ? facciamo che ti fermi per po' ;)",
   });
 
   const findProduct = database.prepare(`

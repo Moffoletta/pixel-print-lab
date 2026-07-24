@@ -117,7 +117,7 @@ export function registerCustomModelRoutes(
 
   const uploadRateLimiter = new RateLimiter(uploadRateLimit);
   const uploadRateLimitMiddleware = rateLimitMiddleware(uploadRateLimiter, {
-    message: "Hai caricato troppi file velocemente. Aspetta che scada il timer per caricarne altri.",
+    message: "Ti stai divertendo a caricare tutti questi file vero ? facciamo che ti fermi per po' ;)",
   });
 
   const storage = multer.diskStorage({
