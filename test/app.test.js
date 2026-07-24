@@ -51,6 +51,7 @@ before(async () => {
     emailService,
     uploadRateLimit: false,
     orderRateLimit: false,
+    disableAuthRateLimits: true,
   }).listen(0);
   await new Promise((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -1507,15 +1508,117 @@ test("protegge le API amministrative e gestisce il ciclo completo di un ordine",
 });
 
 test("applica un unico rate limit concorrente alle credenziali amministrative", async () => {
-  const attempts = await Promise.all(
-    Array.from({ length: 6 }, (_value, index) =>
-      fetch(`${baseUrl}${index % 2 === 0 ? "/api/account/login" : "/api/admin/login"}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username: "test-admin", password: `errata-${index}` }),
-      })
-    ),
-  );
-  assert.equal(attempts.filter(({ status }) => status === 429).length, 1);
-  assert.equal(attempts.filter(({ status }) => status === 401).length, 5);
+  const tempUploadDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-rate-limit-uploads-"));
+  const tempOrderFileDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-rate-limit-orders-"));
+  const tempCatalogDirectory = await mkdtemp(path.join(tmpdir(), "pixel-print-lab-rate-limit-catalog-"));
+  const tempDatabase = openDatabase(":memory:");
+  seedDatabase(tempDatabase);
+  const tempEmailService = { configured: false };
+  const tempServer = createApp({
+    database: tempDatabase,
+    uploadDirectory: tempUploadDirectory,
+    orderFileDirectory: tempOrderFileDirectory,
+    catalogDirectory: tempCatalogDirectory,
+    adminUsername: "test-admin",
+    adminPassword: "test-admin-password",
+    emailService: tempEmailService,
+    uploadRateLimit: false,
+    orderRateLimit: false,
+    disableAuthRateLimits: false,
+  }).listen(0);
+  await new Promise((resolve) => tempServer.once("listening", resolve));
+  const tempUrl = `http://127.0.0.1:${tempServer.address().port}`;
+  try {
+    const attempts = await Promise.all(
+      Array.from({ length: 6 }, (_value, index) =>
+        fetch(`${tempUrl}${index % 2 === 0 ? "/api/account/login" : "/api/admin/login"}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ username: "test-admin", password: `errata-${index}` }),
+        })
+      ),
+    );
+    assert.equal(attempts.filter(({ status }) => status === 429).length, 1);
+    assert.equal(attempts.filter(({ status }) => status === 401).length, 5);
+  } finally {
+    await new Promise((resolve, reject) => tempServer.close((error) => (error ? reject(error) : resolve())));
+    tempDatabase.close();
+    await rm(tempUploadDirectory, { recursive: true, force: true });
+    await rm(tempOrderFileDirectory, { recursive: true, force: true });
+    await rm(tempCatalogDirectory, { recursive: true, force: true });
+  }
+});
+
+test("permette all'amministratore di eliminare tutti gli ordini", async () => {
+  const createOrder = (firstName) => fetch(`${baseUrl}/api/orders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName,
+      lastName: "Bulk",
+      items: [{ type: "catalog", productId: 2, colorId: 4, quantity: 1 }],
+    }),
+  });
+  const order1 = (await (await createOrder("Uno")).json()).data;
+  const order2 = (await (await createOrder("Due")).json()).data;
+  assert.ok(database.prepare("SELECT * FROM orders WHERE code = ?").get(order1.code));
+  assert.ok(database.prepare("SELECT * FROM orders WHERE code = ?").get(order2.code));
+
+  const cookie = await authenticateAdmin();
+  const adminFetch = (pathName, options = {}) => fetch(`${baseUrl}${pathName}`, {
+    ...options,
+    headers: { cookie, ...(options.headers ?? {}) },
+  });
+  const deleteAll = await adminFetch("/api/admin/orders", { method: "DELETE" });
+  assert.equal(deleteAll.status, 204);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM orders").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM order_items").get().count, 0);
+});
+
+test("permette all'utente di eliminare un proprio ordine ma non quelli altrui", async () => {
+  const register = (username) => fetch(`${baseUrl}/api/account/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      username,
+      password: "password-molto-sicura",
+      firstName: "Elimina",
+      lastName: "Test",
+    }),
+  });
+
+  const firstRegistration = await register("utente.elimina");
+  assert.equal(firstRegistration.status, 201);
+  const firstCookie = firstRegistration.headers.get("set-cookie").split(";", 1)[0];
+  const firstFetch = (pathName, options = {}) => fetch(`${baseUrl}${pathName}`, {
+    ...options,
+    headers: { cookie: firstCookie, ...(options.headers ?? {}) },
+  });
+
+  const orderResponse = await firstFetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Elimina",
+      lastName: "Test",
+      items: [{ type: "catalog", productId: 2, colorId: 4, quantity: 1 }],
+    }),
+  });
+  const order = (await orderResponse.json()).data;
+  assert.equal(orderResponse.status, 201);
+
+  const secondRegistration = await register("altro.elimina");
+  assert.equal(secondRegistration.status, 201);
+  const secondCookie = secondRegistration.headers.get("set-cookie").split(";", 1)[0];
+  const otherDelete = await fetch(`${baseUrl}/api/account/orders/${encodeURIComponent(order.code)}`, {
+    method: "DELETE",
+    headers: { cookie: secondCookie },
+  });
+  assert.equal(otherDelete.status, 404);
+
+  const ownDelete = await firstFetch(`/api/account/orders/${encodeURIComponent(order.code)}`, { method: "DELETE" });
+  assert.equal(ownDelete.status, 204);
+
+  const history = await firstFetch("/api/account/orders");
+  assert.equal((await history.json()).data.length, 0);
 });

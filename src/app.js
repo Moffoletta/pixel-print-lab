@@ -27,6 +27,7 @@ export function createApp({
   emailService,
   uploadRateLimit = DEFAULT_UPLOAD_RATE_LIMIT,
   orderRateLimit = DEFAULT_ORDER_RATE_LIMIT,
+  disableAuthRateLimits = false,
 } = {}) {
   if (!database) {
     throw new TypeError("createApp richiede una connessione al database");
@@ -49,7 +50,7 @@ export function createApp({
   });
 
   registerCatalogRoutes(app, database);
-  registerAccountRoutes(app, { database, auth });
+  registerAccountRoutes(app, { database, auth, orderFileDirectory, disableRateLimits: disableAuthRateLimits });
   registerOrderRoutes(app, {
     database,
     uploadDirectory,

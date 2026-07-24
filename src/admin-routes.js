@@ -509,4 +509,20 @@ export function registerAdminRoutes(
       return sendError(response, error);
     }
   });
+
+  app.delete("/api/admin/orders", requireAdmin, async (_request, response) => {
+    try {
+      const filenames = database
+        .prepare("SELECT DISTINCT model_filename FROM order_items WHERE model_filename IS NOT NULL")
+        .pluck()
+        .all();
+      database.prepare("DELETE FROM orders").run();
+      await Promise.all(filenames.map((filename) =>
+        unlink(path.join(orderFileDirectory, filename)).catch(console.error),
+      ));
+      return response.status(204).end();
+    } catch (error) {
+      return sendError(response, error);
+    }
+  });
 }

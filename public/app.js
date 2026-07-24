@@ -102,6 +102,7 @@ const publicStatusLabels = {
   in_attesa: "In attesa",
   in_lavorazione: "In lavorazione",
   completato: "Completato",
+  consegnato: "Consegnato",
 };
 
 function readCart() {
@@ -409,6 +410,8 @@ function renderAccountOrders(orders) {
     element.querySelector('[data-field="account-order-code"]').textContent = order.code;
     element.querySelector('[data-field="account-order-status"]').textContent = publicStatusLabels[order.status] ?? order.status;
     element.querySelector('[data-field="account-order-total"]').textContent = euroFormatter.format(order.catalogTotalCents / 100);
+    const deleteButton = element.querySelector('[data-field="account-order-delete"]');
+    deleteButton.addEventListener("click", () => deleteAccountOrder(order.code));
     const itemList = element.querySelector('[data-field="account-order-items"]');
     order.items.forEach((item) => {
       const listItem = document.createElement("li");
@@ -423,6 +426,19 @@ function renderAccountOrders(orders) {
   });
   accountOrderList.replaceChildren(...elements);
   accountOrdersStatus.textContent = orders.length ? "" : "Non hai ancora inviato ordini con questo account.";
+}
+
+async function deleteAccountOrder(code) {
+  if (!confirm(`Eliminare definitivamente l'ordine ${code}?`)) return;
+  try {
+    await parseApiResponse(await fetch(`/api/account/orders/${encodeURIComponent(code)}`, { method: "DELETE" }));
+    accountOrdersStatus.textContent = "Ordine eliminato.";
+    accountOrdersStatus.classList.remove("account-feedback--error");
+    await loadAccountOrders();
+  } catch (error) {
+    accountOrdersStatus.textContent = error.message;
+    accountOrdersStatus.classList.add("account-feedback--error");
+  }
 }
 
 async function loadAccountOrders() {

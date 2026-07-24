@@ -1821,12 +1821,34 @@ h1 em {
   font-size: 1rem;
 }
 
-.account-order header > strong {
+.account-order header strong {
   padding: 0.4rem 0.55rem;
   color: var(--paper);
   background: var(--green);
   font-size: 0.62rem;
   text-transform: uppercase;
+}
+
+.account-order header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.account-order-delete {
+  padding: 0.35rem 0.55rem;
+  color: var(--paper);
+  background: var(--ink);
+  border: 2px solid var(--ink);
+  font-family: inherit;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.account-order-delete:hover {
+  color: var(--ink);
+  background: var(--paper);
 }
 
 .account-order ul {

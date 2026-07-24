@@ -1,4 +1,7 @@
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { AuthError } from "./auth-service.js";
+import { defaultOrderFileDirectory } from "./order-routes.js";
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -38,7 +41,10 @@ function serializeOrder(order, items) {
   };
 }
 
-export function registerAccountRoutes(app, { database, auth }) {
+export function registerAccountRoutes(
+  app,
+  { database, auth, orderFileDirectory = defaultOrderFileDirectory, disableRateLimits = false },
+) {
   const accountLoginAttempts = new Map();
   const adminLoginAttempts = new Map();
   const registrationAttempts = new Map();
@@ -49,6 +55,14 @@ export function registerAccountRoutes(app, { database, auth }) {
   `);
   const listItems = database.prepare(`
     SELECT * FROM order_items WHERE order_id = ? ORDER BY position
+  `);
+  const findOrderByCode = database.prepare(`
+    SELECT * FROM orders WHERE code = ? AND user_account_id = ?
+  `);
+  const deleteOrderById = database.prepare("DELETE FROM orders WHERE id = ?");
+  const orderModelFiles = database.prepare(`
+    SELECT DISTINCT model_filename FROM order_items
+    WHERE order_id = ? AND model_filename IS NOT NULL
   `);
 
   function checkRateLimit(attempts, key, maximum, message) {
@@ -82,19 +96,21 @@ export function registerAccountRoutes(app, { database, auth }) {
         );
       }
       const username = typeof request.body?.username === "string" ? request.body.username.trim().toLowerCase() : "";
-      attempts = adminOnly || auth.isAdminUsername(username) ? adminLoginAttempts : accountLoginAttempts;
-      rateLimit = checkRateLimit(
-        attempts,
-        `${request.ip}:${username}`,
-        MAX_LOGIN_ATTEMPTS,
-        "Troppi tentativi. Riprova piu tardi.",
-      );
-      recordAttempt(attempts, rateLimit, LOGIN_WINDOW_MS);
+      if (!disableRateLimits) {
+        attempts = adminOnly || auth.isAdminUsername(username) ? adminLoginAttempts : accountLoginAttempts;
+        rateLimit = checkRateLimit(
+          attempts,
+          `${request.ip}:${username}`,
+          MAX_LOGIN_ATTEMPTS,
+          "Troppi tentativi. Riprova piu tardi.",
+        );
+        recordAttempt(attempts, rateLimit, LOGIN_WINDOW_MS);
+      }
       const account = await auth.login(request.body?.username, request.body?.password, { adminOnly });
-      attempts.delete(rateLimit.key);
+      if (!disableRateLimits && attempts && rateLimit) attempts.delete(rateLimit.key);
       return response.status(201).json({ data: auth.createSession(request, response, account) });
     } catch (error) {
-      if (rateLimit && error instanceof AuthError && error.code === "INVALID_CREDENTIALS" && adminOnly) {
+      if (error instanceof AuthError && error.code === "INVALID_CREDENTIALS" && adminOnly) {
         error.code = "INVALID_ADMIN_CREDENTIALS";
       }
       return sendAuthError(response, error);
@@ -103,13 +119,15 @@ export function registerAccountRoutes(app, { database, auth }) {
 
   app.post("/api/account/register", async (request, response) => {
     try {
-      const rateLimit = checkRateLimit(
-        registrationAttempts,
-        request.ip,
-        MAX_REGISTRATIONS,
-        "Troppe registrazioni. Riprova piu tardi.",
-      );
-      recordAttempt(registrationAttempts, rateLimit, REGISTRATION_WINDOW_MS);
+      if (!disableRateLimits) {
+        const rateLimit = checkRateLimit(
+          registrationAttempts,
+          request.ip,
+          MAX_REGISTRATIONS,
+          "Troppe registrazioni. Riprova piu tardi.",
+        );
+        recordAttempt(registrationAttempts, rateLimit, REGISTRATION_WINDOW_MS);
+      }
       const account = await auth.register(request.body ?? {});
       return response.status(201).json({ data: auth.createSession(request, response, account) });
     } catch (error) {
@@ -133,6 +151,28 @@ export function registerAccountRoutes(app, { database, auth }) {
       serializeOrder(order, listItems.all(order.id))
     );
     response.json({ data: orders, count: orders.length });
+  });
+
+  app.delete("/api/account/orders/:code", auth.requireAccount, async (request, response) => {
+    try {
+      const code = typeof request.params.code === "string" ? request.params.code.trim() : "";
+      if (!code) {
+        return response.status(404).json({ error: { code: "ORDER_NOT_FOUND", message: "Ordine non trovato." } });
+      }
+      const order = findOrderByCode.get(code, request.userAccount.id);
+      if (!order) {
+        return response.status(404).json({ error: { code: "ORDER_NOT_FOUND", message: "Ordine non trovato." } });
+      }
+      const filenames = orderModelFiles.pluck().all(order.id);
+      deleteOrderById.run(order.id);
+      await Promise.all(filenames.map((filename) =>
+        unlink(path.join(orderFileDirectory, filename)).catch(console.error),
+      ));
+      return response.status(204).end();
+    } catch (error) {
+      console.error(error);
+      return response.status(500).json({ error: { code: "ORDER_DELETE_FAILED", message: "Impossibile eliminare l'ordine." } });
+    }
   });
 
   app.put("/api/account/password", auth.requireAccount, async (request, response) => {

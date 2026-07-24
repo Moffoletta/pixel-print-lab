@@ -655,6 +655,20 @@
   font-size: 1.25rem;
 }
 
+.delete-all-orders {
+  width: 100%;
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.5rem;
+  color: #9c2f22;
+  background: transparent;
+  border: 2px solid currentColor;
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .admin-item > header button,
 .delete-order {
   padding: 0.35rem 0;

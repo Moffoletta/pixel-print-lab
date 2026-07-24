@@ -389,7 +389,10 @@
       <article class="account-order">
         <header>
           <div><p data-field="account-order-date"></p><h4 data-field="account-order-code"></h4></div>
-          <strong data-field="account-order-status"></strong>
+          <div>
+            <strong data-field="account-order-status"></strong>
+            <button class="account-order-delete" data-field="account-order-delete" type="button" aria-label="Elimina ordine">Elimina</button>
+          </div>
         </header>
         <ul data-field="account-order-items"></ul>
         <p class="account-order__total"><span>Totale catalogo</span><strong data-field="account-order-total"></strong></p>

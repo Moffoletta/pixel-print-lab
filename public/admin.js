@@ -32,6 +32,7 @@ const adminItems = document.querySelector("#admin-items");
 const adminItemTemplate = document.querySelector("#admin-item-template");
 const orderFeedback = document.querySelector("#order-feedback");
 const deleteOrderButton = document.querySelector("#delete-order");
+const deleteAllOrdersButton = document.querySelector("#delete-all-orders");
 const ordersView = document.querySelector("#orders-view");
 const archiveSidebar = document.querySelector("#archive-sidebar");
 const archiveList = document.querySelector("#archive-list");
@@ -595,6 +596,28 @@ newColorForm.addEventListener("submit", async (event) => {
   } catch (error) {
     colorFeedback.textContent = error.message;
     colorFeedback.classList.add("admin-feedback--error");
+  }
+});
+
+deleteAllOrdersButton.addEventListener("click", async () => {
+  if (!confirm("Eliminare definitivamente TUTTE le richieste? Questa azione non e reversibile.")) return;
+  deleteAllOrdersButton.disabled = true;
+  try {
+    await api("/api/admin/orders", { method: "DELETE" });
+    orders = [];
+    archive = [];
+    currentOrder = undefined;
+    orderForm.hidden = true;
+    orderEmpty.hidden = false;
+    renderOrderList();
+    renderArchiveList();
+    orderFeedback.textContent = "Tutte le richieste sono state eliminate.";
+    orderFeedback.classList.remove("admin-feedback--error");
+  } catch (error) {
+    orderFeedback.textContent = error.message;
+    orderFeedback.classList.add("admin-feedback--error");
+  } finally {
+    deleteAllOrdersButton.disabled = false;
   }
 });
 
