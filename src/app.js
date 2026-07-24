@@ -13,8 +13,8 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.join(currentDirectory, "..", "public");
 const threeDirectory = path.join(currentDirectory, "..", "node_modules", "three");
 
-const DEFAULT_UPLOAD_RATE_LIMIT = { windowMs: 5 * 60 * 1000, max: 10 };
-const DEFAULT_ORDER_RATE_LIMIT = { windowMs: 5 * 60 * 1000, max: 10 };
+const DEFAULT_UPLOAD_RATE_LIMIT = { windowMs: 5 * 60 * 1000, max: 5 };
+const DEFAULT_ORDER_RATE_LIMIT = { windowMs: 5 * 60 * 1000, max: 5 };
 
 export function createApp({
   database,
