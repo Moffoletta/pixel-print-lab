@@ -37,6 +37,7 @@
             <h1 id="dashboard-title">Control Room</h1>
             <nav class="admin-nav" aria-label="Sezioni amministrative">
               <button class="admin-nav__button admin-nav__button--active" data-view="orders" type="button">Ordini</button>
+              <button class="admin-nav__button" data-view="archive" type="button">Archivio</button>
               <button class="admin-nav__button" data-view="catalog" type="button">Catalogo</button>
             </nav>
           </div>
@@ -47,13 +48,22 @@
         </header>
 
         <div class="admin-workspace" id="orders-view">
-          <aside class="order-sidebar" aria-labelledby="order-list-title">
+          <aside class="order-sidebar" id="order-sidebar" aria-labelledby="order-list-title">
             <div class="order-sidebar__heading">
-              <h2 id="order-list-title">Archivio</h2>
+              <h2 id="order-list-title">Ordini</h2>
               <span id="order-count">00</span>
             </div>
             <p class="order-list-status" id="order-list-status" role="status">Caricamento richieste...</p>
             <div class="order-list" id="order-list"></div>
+          </aside>
+
+          <aside class="order-sidebar" id="archive-sidebar" aria-labelledby="archive-list-title" hidden>
+            <div class="order-sidebar__heading">
+              <h2 id="archive-list-title">Archivio</h2>
+              <span id="archive-count">00</span>
+            </div>
+            <p class="order-list-status" id="archive-list-status" role="status">Caricamento archivio...</p>
+            <div class="order-list" id="archive-list"></div>
           </aside>
 
           <section class="order-editor" aria-live="polite">
@@ -78,6 +88,7 @@
                     <option value="in_attesa">In attesa</option>
                     <option value="in_lavorazione">In lavorazione</option>
                     <option value="completato">Completato</option>
+                    <option value="consegnato">Consegnato</option>
                   </select>
                 </label>
                 <button id="save-order-status" type="button">Aggiorna stato</button>

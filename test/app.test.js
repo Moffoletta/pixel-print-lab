@@ -284,7 +284,7 @@ test("il seed puo essere eseguito piu volte senza duplicare dati", () => {
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM products").get().count, 2);
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM colors").get().count, 4);
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 9);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 10);
   assert.equal(database.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
 });
 
@@ -346,7 +346,7 @@ test("migra un catalogo esistente senza perdere dati e impedisce il riuso degli 
     assert.match(legacyDatabase.prepare("SELECT sql FROM sqlite_master WHERE name = 'colors'").get().sql, /AUTOINCREMENT/);
     assert.equal(legacyDatabase.prepare("SELECT model_format FROM order_items WHERE id = 1").get().model_format, "stl");
     assert.equal(legacyDatabase.prepare("SELECT status FROM orders WHERE id = 1").get().status, "in_attesa");
-    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 9);
+    assert.equal(legacyDatabase.prepare("SELECT COUNT(*) AS count FROM schema_migrations").get().count, 10);
     assert.equal(legacyDatabase.prepare("SELECT email_notifications_enabled FROM app_settings WHERE id = 1").get().email_notifications_enabled, 0);
     assert.equal(legacyDatabase.prepare("SELECT admin_username FROM app_settings WHERE id = 1").get().admin_username, null);
     legacyDatabase.prepare("DELETE FROM products WHERE id = 7").run();
@@ -866,6 +866,45 @@ test("rispetta il limite di 15 ordini in lavorazione", async () => {
   } finally {
     database.prepare("DELETE FROM orders WHERE code LIKE 'CAP-%'").run();
   }
+});
+
+test("archivia gli ordini consegnati e li esclude dalla homepage", async () => {
+  const orderResponse = await fetch(`${baseUrl}/api/orders`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      firstName: "Archivia",
+      lastName: "Test",
+      items: [{ type: "catalog", productId: 2, colorId: 4, quantity: 1 }],
+    }),
+  });
+  assert.equal(orderResponse.status, 201);
+  const { code } = (await orderResponse.json()).data;
+  const order = database.prepare("SELECT * FROM orders WHERE code = ?").get(code);
+
+  const cookie = await authenticateAdmin();
+  const adminFetch = (pathName, options = {}) => fetch(`${baseUrl}${pathName}`, {
+    ...options,
+    headers: { cookie, ...(options.headers ?? {}) },
+  });
+
+  const statusResponse = await adminFetch(`/api/admin/orders/${order.id}/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "consegnato" }),
+  });
+  assert.equal(statusResponse.status, 200);
+
+  const publicOrders = (await (await fetch(`${baseUrl}/api/orders`)).json()).data;
+  assert.equal(publicOrders.some((o) => o.code === code), false);
+
+  const activeOrders = (await (await adminFetch("/api/admin/orders")).json()).data;
+  assert.equal(activeOrders.some((o) => o.code === code), false);
+
+  const archiveOrders = (await (await adminFetch("/api/admin/orders/archive")).json()).data;
+  assert.equal(archiveOrders.some((o) => o.code === code), true);
+
+  database.prepare("DELETE FROM orders WHERE code = ?").run(code);
 });
 
 

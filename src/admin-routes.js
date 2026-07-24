@@ -398,6 +398,35 @@ export function registerAdminRoutes(
           COALESCE(SUM(order_items.quantity), 0) AS piece_count
         FROM orders
         LEFT JOIN order_items ON order_items.order_id = orders.id
+        WHERE orders.status != 'consegnato'
+        GROUP BY orders.id
+        ORDER BY orders.created_at DESC, orders.id DESC
+      `)
+      .all()
+      .map((order) => ({
+        id: order.id,
+        code: order.code,
+        firstName: order.first_name,
+        lastName: order.last_name,
+        catalogTotalCents: order.catalog_total_cents,
+        itemCount: order.item_count,
+        pieceCount: order.piece_count,
+        status: order.status,
+        createdAt: order.created_at,
+      }));
+    response.json({ data: orders, count: orders.length });
+  });
+
+  app.get("/api/admin/orders/archive", requireAdmin, (_request, response) => {
+    const orders = database
+      .prepare(`
+        SELECT
+          orders.*,
+          COUNT(order_items.id) AS item_count,
+          COALESCE(SUM(order_items.quantity), 0) AS piece_count
+        FROM orders
+        LEFT JOIN order_items ON order_items.order_id = orders.id
+        WHERE orders.status = 'consegnato'
         GROUP BY orders.id
         ORDER BY orders.created_at DESC, orders.id DESC
       `)

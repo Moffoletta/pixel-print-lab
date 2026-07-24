@@ -33,6 +33,10 @@ const adminItemTemplate = document.querySelector("#admin-item-template");
 const orderFeedback = document.querySelector("#order-feedback");
 const deleteOrderButton = document.querySelector("#delete-order");
 const ordersView = document.querySelector("#orders-view");
+const archiveSidebar = document.querySelector("#archive-sidebar");
+const archiveList = document.querySelector("#archive-list");
+const archiveListStatus = document.querySelector("#archive-list-status");
+const archiveCount = document.querySelector("#archive-count");
 const catalogView = document.querySelector("#catalog-view");
 const navigationButtons = document.querySelectorAll("[data-view]");
 const productCount = document.querySelector("#product-count");
@@ -52,14 +56,17 @@ const euroFormatter = new Intl.NumberFormat("it-IT", { style: "currency", curren
 const dateFormatter = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" });
 
 let orders = [];
+let archive = [];
 let products = [];
 let colors = [];
 let currentOrder;
 let selectedProductId;
+let currentSection = "orders";
 const orderStatusLabels = {
   in_attesa: "In attesa",
   in_lavorazione: "In lavorazione",
   completato: "Completato",
+  consegnato: "Consegnato",
 };
 
 async function api(path, options = {}) {
@@ -136,11 +143,51 @@ async function loadOrders() {
   const result = await api("/api/admin/orders");
   orders = [...result].reverse();
   renderOrderList();
-  if (currentOrder && orders.some((order) => order.id === currentOrder.id)) {
+  if (currentSection === "orders" && currentOrder && orders.some((order) => order.id === currentOrder.id)) {
     await loadOrder(currentOrder.id);
-  } else if (orders.length > 0) {
+  } else if (currentSection === "orders" && orders.length > 0) {
     await loadOrder(orders[0].id);
-  } else {
+  } else if (currentSection === "orders") {
+    currentOrder = undefined;
+    orderForm.hidden = true;
+    orderEmpty.hidden = false;
+  }
+}
+
+function renderArchiveList() {
+  archiveList.replaceChildren();
+  archiveCount.textContent = String(archive.length).padStart(2, "0");
+  archiveListStatus.hidden = archive.length > 0;
+  archiveListStatus.textContent = archive.length ? "" : "Nessun ordine consegnato.";
+  const fragment = document.createDocumentFragment();
+  archive.forEach((order, index) => {
+    const button = orderListTemplate.content.firstElementChild.cloneNode(true);
+    button.dataset.orderId = order.id;
+    button.querySelector('[data-field="list-order"]').textContent = String(index + 1).padStart(2, "0");
+    button.querySelector('[data-field="list-code"]').textContent = order.code;
+    button.querySelector('[data-field="list-name"]').textContent = `${order.firstName} ${order.lastName}`;
+    button.querySelector('[data-field="list-status"]').textContent = orderStatusLabels[order.status] ?? order.status;
+    button.querySelector('[data-field="list-status"]').dataset.status = order.status;
+    button.querySelector('[data-field="list-pieces"]').textContent = order.pieceCount;
+    button.querySelector('[data-field="list-date"]').textContent = formatDate(order.createdAt);
+    button.classList.toggle("order-list-item--active", currentOrder?.id === order.id);
+    button.addEventListener("click", () => loadOrder(order.id));
+    fragment.append(button);
+  });
+  archiveList.append(fragment);
+}
+
+async function loadArchive() {
+  archiveListStatus.hidden = false;
+  archiveListStatus.textContent = "Caricamento archivio...";
+  const result = await api("/api/admin/orders/archive");
+  archive = [...result].reverse();
+  renderArchiveList();
+  if (currentSection === "archive" && currentOrder && archive.some((order) => order.id === currentOrder.id)) {
+    await loadOrder(currentOrder.id);
+  } else if (currentSection === "archive" && archive.length > 0) {
+    await loadOrder(archive[0].id);
+  } else if (currentSection === "archive") {
     currentOrder = undefined;
     orderForm.hidden = true;
     orderEmpty.hidden = false;
@@ -197,8 +244,12 @@ async function loadOrder(id) {
 }
 
 function showSection(name) {
-  ordersView.hidden = name !== "orders";
+  currentSection = name;
+  ordersView.hidden = name !== "orders" && name !== "archive";
   catalogView.hidden = name !== "catalog";
+  orderSidebar.hidden = name !== "orders";
+  archiveSidebar.hidden = name !== "archive";
+  if (name === "archive" && archive.length === 0) loadArchive();
   navigationButtons.forEach((button) => {
     const active = button.dataset.view === name;
     button.classList.toggle("admin-nav__button--active", active);
@@ -460,7 +511,15 @@ saveOrderStatusButton.addEventListener("click", async () => {
     if (currentOrder?.id === orderId) currentOrder.status = result.status;
     const listOrder = orders.find((order) => order.id === orderId);
     if (listOrder) listOrder.status = result.status;
-    renderOrderList();
+    const archiveOrder = archive.find((order) => order.id === orderId);
+    if (archiveOrder) archiveOrder.status = result.status;
+    await loadOrders();
+    await loadArchive();
+    if (result.status === "consegnato" && currentSection !== "archive") {
+      showSection("archive");
+    } else if (result.status !== "consegnato" && currentSection === "archive") {
+      showSection("orders");
+    }
     orderFeedback.textContent = "Stato pubblico aggiornato.";
   } catch (error) {
     orderFeedback.textContent = error.message;
@@ -545,7 +604,8 @@ deleteOrderButton.addEventListener("click", async () => {
   try {
     await api(`/api/admin/orders/${currentOrder.id}`, { method: "DELETE" });
     currentOrder = undefined;
-    await loadOrders();
+    if (currentSection === "archive") await loadArchive();
+    else await loadOrders();
   } catch (error) {
     orderFeedback.textContent = error.message;
     orderFeedback.classList.add("admin-feedback--error");

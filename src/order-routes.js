@@ -23,7 +23,7 @@ export const defaultOrderFileDirectory = path.join(currentDirectory, "..", "stor
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ORDER_ITEMS = 100;
 const MAX_OPEN_ORDERS = 15;
-export const ORDER_STATUSES = new Set(["in_attesa", "in_lavorazione", "completato"]);
+export const ORDER_STATUSES = new Set(["in_attesa", "in_lavorazione", "completato", "consegnato"]);
 
 class OrderError extends Error {
   constructor(code, message, status = 400) {
@@ -145,13 +145,14 @@ export function registerOrderRoutes(
   const listPublicOrders = database.prepare(`
     SELECT code, status
     FROM orders
+    WHERE status != 'consegnato'
     ORDER BY created_at ASC, id ASC
   `);
   const getSettings = database.prepare(`
     SELECT email_notifications_enabled FROM app_settings WHERE id = 1
   `);
   const countOpenOrders = database.prepare(`
-    SELECT COUNT(*) AS count FROM orders WHERE status != 'completato'
+    SELECT COUNT(*) AS count FROM orders WHERE status NOT IN ('completato', 'consegnato')
   `);
   const insertOrder = database.prepare(`
     INSERT INTO orders (code, first_name, last_name, catalog_total_cents, user_account_id)

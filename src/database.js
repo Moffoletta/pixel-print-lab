@@ -230,6 +230,33 @@ const migrations = [
       ADD COLUMN admin_password_hash TEXT;
     `,
   },
+  {
+    version: 10,
+    name: "add_delivered_order_status",
+    sql: `
+      CREATE TABLE orders_new (
+        id INTEGER PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        catalog_total_cents INTEGER NOT NULL CHECK (catalog_total_cents >= 0),
+        status TEXT NOT NULL DEFAULT 'in_attesa'
+          CHECK (status IN ('in_attesa', 'in_lavorazione', 'completato', 'consegnato')),
+        user_account_id INTEGER REFERENCES user_accounts(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT INTO orders_new
+        SELECT id, code, first_name, last_name, catalog_total_cents, status, user_account_id, created_at
+        FROM orders;
+
+      DROP TABLE orders;
+      ALTER TABLE orders_new RENAME TO orders;
+
+      CREATE INDEX orders_created_at_idx ON orders (created_at DESC, id DESC);
+      CREATE INDEX orders_account_created_idx ON orders (user_account_id, created_at DESC, id DESC);
+    `,
+  },
 ];
 
 const products = [
