@@ -128,7 +128,9 @@ export function registerOrderRoutes(
   mkdirSync(orderFileDirectory, { recursive: true });
 
   const orderRateLimiter = new RateLimiter(orderRateLimit);
-  const orderRateLimitMiddleware = rateLimitMiddleware(orderRateLimiter);
+  const orderRateLimitMiddleware = rateLimitMiddleware(orderRateLimiter, {
+    message: "Hai creato troppi ordini velocemente. Aspetta che scada il timer per crearne altri.",
+  });
 
   const findProduct = database.prepare(`
     SELECT id, code, name, price_cents

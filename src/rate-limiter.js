@@ -42,14 +42,17 @@ export class RateLimiter {
   }
 }
 
-export function rateLimitMiddleware(limiter, { keyGenerator = (request) => request.ip } = {}) {
+export function rateLimitMiddleware(limiter, { keyGenerator = (request) => request.ip, message } = {}) {
   return (request, response, next) => {
     const key = keyGenerator(request);
     const result = limiter.check(key);
     if (!result.allowed) {
       response.setHeader("Retry-After", String(result.retryAfter));
       return response.status(429).json({
-        error: { code: "RATE_LIMITED", message: "Troppe richieste. Riprova piu tardi." },
+        error: {
+          code: "RATE_LIMITED",
+          message: message ?? "Troppe richieste. Riprova piu tardi.",
+        },
       });
     }
     limiter.record(key);
